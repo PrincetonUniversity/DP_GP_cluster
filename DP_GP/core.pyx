@@ -14,9 +14,9 @@ import GPy
 import scipy
 import copy
 from DP_GP import utils
+from sklearn.preprocessing import scale,StandardScaler
 
 import sys
-
 
 def squared_dist_two_matrices(S, S_new):   
     '''Compute the squared distance between two numpy arrays/matrices.'''
@@ -24,7 +24,145 @@ def squared_dist_two_matrices(S, S_new):
     sq_dist = np.sum(np.dot(diff, diff))
     return(sq_dist)
 
+# pre-compute useful value
 _LOG_2PI = np.log(2 * np.pi)
+
+#############################################################################################
+# 
+#    Routine for reading gene expression matrix/matrices
+#
+#############################################################################################
+
+def read_gene_expression_matrices(gene_expression_matrices, true_times, do_not_mean_center, sigma_n2_shape, sigma_n2_rate):
+    '''
+    Reads a gene expression matrix or matrices (dataframe or dataframes). 
+    If there are multiple matrices given, these are assumed to come from replicates
+    and the parameters for the prior of on then noise variance are computed from
+    the distribution of the empirical noise variance, assuming an inverse gamma distribution.
+    Unless otherwise indicated (i.e. do_not_mean_center=True), expression for each gene
+    is mean-centered across the time course.
+        
+    :param gene_expression_matrices: contains path(s) for gene expression matrix/matrices
+    :type gene_expression_matrix: list of string(s)
+    :param true_times: if true_times, then use time points in header; else assume equally spaced time points
+    :type true_times: bool
+    :param do_not_mean_center: if do_not_mean_center, then do not mean-center
+    :type do_not_mean_center: bool
+    :param sigma_n2_shape: shape parameter for inverse gamma prior for noise variance
+    :type sigma_n2_shape: float
+    :param sigma_n2_rate: rate parameter for inverse gamma prior for noise variance
+    :type sigma_n2_rate: float
+    
+    :returns: (gene_expression_matrix, gene_names, sigma_n, sigma_n2_shape, sigma_n2_rate, t):
+        gene_expression_matrix: posterior similarity matrix
+        :type gene_expression_matrix: numpy array of dimension N by P where N=number of genes, P=number of time points
+        gene_names: list of gene names
+        :type gene_names: list
+        sigma_n: within-cluster noise variance
+        :type sigma_n: float
+        sigma_n2_shape: shape parameter for inverse gamma prior for noise variance, differs from input only if replicates given
+        :type sigma_n2_shape: float
+        sigma_n2_rate: rate parameter for inverse gamma prior for noise variance, differs from input only if replicates given
+        :type sigma_n2_rate: float
+        t: time points in time series
+        :type t: numpy array of dimension P by 1 where P=number of time points
+    
+    '''
+    
+    if len(gene_expression_matrices) > 1: # if replicates provided:
+        
+        for i, gene_expression_matrix in enumerate(gene_expression_matrices):
+            
+            gene_expression_matrix = pd.read_csv(gene_expression_matrix, delim_whitespace=True, index_col=0)
+            gene_names = list(gene_expression_matrix.index)
+            
+            if true_times:
+                t = np.array(list(gene_expression_matrix.columns)).astype('float')
+            else:
+                t = np.array(range(gene_expression_matrix.shape[1])).astype('float') # equally spaced time points
+            if i != 0:
+                gene_expression_array = np.dstack((gene_expression_array, gene_expression_matrix))
+            else:
+                gene_expression_array = np.array(gene_expression_matrix)
+        
+        # take gene expression mean across replicates
+        gene_expression_matrix = gene_expression_array.mean(axis=2)
+        
+        # scale each gene's expression across time-series to mean 0, std. dev 1.
+        if do_not_mean_center:
+            
+            gene_expression_matrix = pd.DataFrame(gene_expression_matrix, columns=t)
+            gene_expression_matrix.index = gene_names
+            gene_expression_array = np.dstack([gene_expression_array[:,:,i] for i in range(gene_expression_array.shape[2])])
+            
+        else:
+            
+            # calibrate scaler to mean across replicates
+            scaler = StandardScaler().fit(gene_expression_matrix) 
+            # standardize mean gene expression
+            gene_expression_matrix = scaler.transform(gene_expression_matrix) 
+            gene_expression_matrix = pd.DataFrame(gene_expression_matrix, columns=t)
+            gene_expression_matrix.index = gene_names
+            
+            # use scaler to scale replicates separately and create depth-stacked array (depth=reps) of standardized expression
+            gene_expression_array = np.dstack([scaler.transform(gene_expression_array[:,:,i]) for i in range(gene_expression_array.shape[2])])
+            
+        # estimate noise variance function parameters empirically:
+        sigma_n2_distro = gene_expression_array.var(axis=2)
+        sigma_n2_shape, loc, sigma_n2_scale = scipy.stats.invgamma.fit(sigma_n2_distro, floc=0 )
+        sigma_n2_rate = 1.0 / sigma_n2_scale
+        # compute sigma_n as median of distribution
+        sigma_n = np.sqrt(1 / ((sigma_n2_shape + 1) * sigma_n2_rate))
+        
+    else: # if there are no replicates:
+        
+        gene_expression_matrix = pd.read_csv(gene_expression_matrices[0], delim_whitespace=True, index_col=0)
+        gene_names = list(gene_expression_matrix.index)
+        
+        if true_times:
+            t = np.array(list(gene_expression_matrix.columns)).astype('float')
+        else:
+            t = np.array(range(gene_expression_matrix.shape[1])).astype('float') # equally spaced time points
+        
+        # standardize gene expression
+        if not do_not_mean_center:
+            gene_expression_matrix = pd.DataFrame(scale(np.array(gene_expression_matrix), axis=1), columns=t)
+            gene_expression_matrix.index = gene_names
+        else:
+            gene_expression_matrix.columns = t
+        
+        # assign hyperpriors to noise variance:
+        sigma_n2_shape = sigma_n2_shape # these value seems to work well in practice,
+        sigma_n2_rate = sigma_n2_rate  # without prior, sigma_n may be (over-)optimized to zero.
+        # compute sigma_n as median of distribution
+        sigma_n = np.sqrt(1 / ((sigma_n2_shape + 1) * sigma_n2_rate))
+        
+    gene_expression_matrix = np.array(gene_expression_matrix)
+    return(gene_expression_matrix, gene_names, sigma_n, sigma_n2_shape, sigma_n2_rate, t)
+
+#############################################################################################
+# 
+#    Reporting functions
+#
+#############################################################################################
+
+def save_clusterings(sampled_clusterings, output_path_prefix):
+    """Save all sampled clusterings to file."""
+    sampled_clusterings.to_csv(output_path_prefix + "_clusterings.txt", sep='\t', index=False)
+    
+def save_posterior_similarity_matrix(sim_mat, gene_names, output_path_prefix):
+    """Save posterior similarity matrix to file."""
+    pd.DataFrame(sim_mat, columns=gene_names, index=gene_names).to_csv(output_path_prefix+"_posterior_similarity_matrix.txt", sep='\t')
+
+def save_log_likelihoods(log_likelihoods, output_path_prefix):
+    """Save log-likelihoods to file."""
+    with open(output_path_prefix + '_log_likelihoods.txt', 'w') as f:
+        f.write('\n'.join(["%0.4f"%LL for LL in log_likelihoods]) + '\n')
+
+def save_posterior_similarity_matrix_key(gene_names, output_path_prefix):
+    """Save log-likelihoods to file."""
+    with open(output_path_prefix + '_posterior_similarity_matrix_heatmap_key.txt', 'w') as f:
+        f.write('\n'.join(gene_names) + '\n')
 
 #############################################################################################
 # 
@@ -39,9 +177,9 @@ class dp_cluster():
     :param members: 0 or more gene indices that belong to cluster
     :type members: list
     :param sigma_n: initial noise variance
-    :type members: list
-    :param members: 0 or more gene indices that belong to cluster
-    :type members: list
+    :type sigma_n: float
+    :param X: vertically stacked array of time points
+    :type X: numpy array of dimension 1 x P, where P = number of time points
     :param iter_num_at_birth: iteration when cluster created
     :type iter_num_at_birth: int
     
@@ -82,6 +220,9 @@ class dp_cluster():
         self.update_rank_U_and_log_pdet()
         
     def update_rank_U_and_log_pdet(self):
+        ''' 
+        [need description]
+        '''
         s, u = scipy.linalg.eigh(self.covK, check_finite=False)
         eps = 1E6 * np.finfo('float64').eps * np.max(abs(s))
         d = s[s > eps]
@@ -89,7 +230,7 @@ class dp_cluster():
         self.rank = len(d)
         self.U = np.multiply(u, np.sqrt(s_pinv))
         self.log_pdet = np.sum(np.log(d))
-    
+        
     def add_member(self, new_member, iter_num):
         ''' 
         Add a member to this cluster and increment size.
@@ -121,8 +262,7 @@ class dp_cluster():
         
         '''
         
-#         if (self.size > 1): # perhaps I should wait to optimize until cluster has been present for some number of iterations?
-        if (self.size > 0): # perhaps I should wait to optimize until cluster has been present for some number of iterations?
+        if (self.size > 0):
             
             if not self.model_optimized:
                 
@@ -162,8 +302,6 @@ class dp_cluster():
 #    Define gibbs_sampler class
 #
 #############################################################################################
-
-# false change
         
 cdef class gibbs_sampler(object):
     '''
@@ -380,7 +518,7 @@ cdef class gibbs_sampler(object):
         
         prior_normed = prior / np.sum(prior)
         return prior_normed
-    
+        
     @cython.wraparound(False)
     @cython.cdivision(True)
     @cython.nonecheck(False)
@@ -536,11 +674,7 @@ cdef class gibbs_sampler(object):
             self.last_cluster[i] = self.m + i
             
         while (not self.converged) and (self.iter_num < self.max_num_iterations):
-            
-            print sys.getsizeof(self.last_MVN_by_cluster_by_gene)
-            print sys.getsizeof(self.clusters)
-            print sys.getsizeof(self.all_clusterings)
-            
+                        
             self.iter_num += 1
             
             # keep user updated on clustering progress:
@@ -565,7 +699,7 @@ cdef class gibbs_sampler(object):
                 lik, LL = self.calculate_likelihood_MVN_by_dict(gene)
                 
                 # lik is array of normalized likelihoods
-                # LL is array of log-likelihood
+                # LL is array of log-likelihoods
                 for clusterID, likelihood in zip(sorted(self.clusters), LL):
                     self.last_MVN_by_cluster_by_gene[clusterID][gene] = likelihood
                 
@@ -680,5 +814,8 @@ cdef class gibbs_sampler(object):
         
         self.sampled_clusterings = pd.DataFrame(self.sampled_clusterings[1:,:], columns=self.sampled_clusterings[0,:])
         self.all_clusterings = pd.DataFrame(self.all_clusterings[1:,:], columns=self.all_clusterings[0,:])
+        
+        # S is lower triangular, make into full symmetric similarity matrix
+        self.S = np.array(self.S + self.S.T + np.eye(len(self.S)))
         
         return(self.S, self.all_clusterings, self.sampled_clusterings, self.log_likelihoods, self.iter_num)

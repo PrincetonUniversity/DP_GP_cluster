@@ -380,19 +380,15 @@ if args.gene_expression_matrix:
             
             gene_expression_matrix = pd.read_csv(gene_expression_matrices[0], delim_whitespace=True, index_col=0)
             gene_names = list(gene_expression_matrix.index)
+            
             if true_times:
                 t = np.array(list(gene_expression_matrix.columns)).astype('float')
             else:
                 t = np.array(range(gene_expression_matrix.shape[1])).astype('float') # equally spaced time points
-            
-            gene_expression_matrix = np.array(gene_expression_matrix)
-            
+                        
             # scale each gene's expression across time-series to mean 0, std. dev 1.
-            if args.do_not_mean_center:
-                gene_expression_matrix = pd.DataFrame(gene_expression_matrix, columns=t)
-                gene_expression_matrix.index = gene_names
-            else:
-                gene_expression_matrix = pd.DataFrame(scale(gene_expression_matrix, axis=1), columns=t)
+            if not args.do_not_mean_center:
+                gene_expression_matrix = pd.DataFrame(scale(np.array(gene_expression_matrix), axis=1), columns=t)
                 gene_expression_matrix.index = gene_names
                 
             # assign hyperpriors to noise variance:

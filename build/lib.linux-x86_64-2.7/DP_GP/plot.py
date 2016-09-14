@@ -10,7 +10,8 @@ matplotlib.use('Agg')
 font = {'size'   : 8}
 matplotlib.rc('font', **font)
 import matplotlib.pyplot as plt
-
+import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 from scipy.cluster.hierarchy import linkage, dendrogram
 import scipy.cluster.hierarchy as sch
 import numpy as np
@@ -96,9 +97,18 @@ def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit,
             
             ax.plot(Xgrid, mu, color='blue')
             # create legend
-            ax.legend([ax.lines[0], ax.lines[1], ax.lines[-1]], \
+#             light_blue_patch = mpatches.Rectangle([0, 0], 1, 1, facecolor='#33CCFF', edgecolor='none', lw=0, alpha=0.3)
+            light_blue_patch = mpatches.Rectangle([0, 0], 1, 1, facecolor='#33CCFF', edgecolor='blue', lw=1, alpha=0.3)
+            red_line = mlines.Line2D([], [], color='red', label='individual gene trajectory')
+        #     ax.legend(handles=[blue_line, light_blue_patch, red_line], \
+        #               labels=['cluster mean', u'cluster mean \u00B1 2 x std. dev.', 'individual gene trajectory']
+        #               loc=4, frameon=False, prop={'size':8})
+            ax.legend([ax.lines[0], light_blue_patch, red_line], \
                       ['cluster mean', u'cluster mean \u00B1 2 x std. dev.', 'individual gene trajectory'], 
                       loc=4, frameon=False, prop={'size':6})
+#             ax.legend([ax.lines[0], ax.lines[1], ax.lines[-1]], \
+#                       ['cluster mean', u'cluster mean \u00B1 2 x std. dev.', 'individual gene trajectory'], 
+#                       loc=4, frameon=False, prop={'size':6})
             # prettify axes
             adjust_spines(ax, ['left', 'bottom'])
             # label:
@@ -111,7 +121,9 @@ def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit,
             ax.set_ylabel('Gene expression')
             ax.set_title('Cluster %s'%(index))
             index+=1
+        
         plt.tight_layout()
+        
         for plot_type in plot_types:
             plt.savefig(output_path_prefix + '_gene_expression_fig_' + str(c+1) + '.' + plot_type)
 
