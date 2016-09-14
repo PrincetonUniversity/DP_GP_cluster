@@ -15,7 +15,7 @@ before_install:
   - sudo ln -s /run/shm /dev/shm
 # Install packages
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION pandas numpy scipy matplotlib cython sklearn
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION pandas numpy scipy matplotlib cython scikit-learn 
   - pip install GPy
   - python setup.py install
 script:
