@@ -8,6 +8,7 @@ from cpython cimport bool
 from sys import float_info
 import numpy as np
 cimport numpy as np
+np.import_array()
 import pandas as pd
 import collections
 import GPy
