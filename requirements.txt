@@ -1,7 +1,7 @@
 cython
-GPy>= 0.8.8
 matplotlib
 numpy
 pandas
 scipy>= 0.14
 sklearn
+GPy>= 0.8.8
