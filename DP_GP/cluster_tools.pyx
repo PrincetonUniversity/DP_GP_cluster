@@ -1,6 +1,7 @@
 import numpy as np
 from DP_GP import utils
 from scipy.cluster.hierarchy import fclusterdata
+import cython
 
 #############################################################################################
 
@@ -14,7 +15,59 @@ def log_factorial(n):
 
 #############################################################################################
 
-def compute_mpear(cluster_labels, sim_mat):
+# def compute_mpear(cluster_labels, sim_mat):
+#     '''
+#     Compute MPEAR (Fritsch and Ickstadt 2009, DOI:10.1214/09-BA414).
+#     This function and accessory routines were taken with little 
+#     modification from Pyclone (Roth et al. 2014 DOI:10.1038/nmeth.2883).
+    
+#     :param cluster_labels: cluster labels
+#     :type cluster_labels: numpy array of ints
+#     :param sim_mat: sim_mat[i,j] = (# samples gene i in cluster with gene j)/(# total samples)
+#     :type sim_mat: numpy array of (0-1) floats
+    
+#     :rtype: float
+    
+#     '''
+#     N = sim_mat.shape[0]
+    
+#     c = np.exp(log_binomial_coefficient(N, 2))
+    
+#     num_term_1 = 0
+    
+#     for j in range(N):
+#         for i in range(j):
+#             if cluster_labels[i] == cluster_labels[j]:
+#                 num_term_1 += sim_mat[i][j]
+    
+#     num_term_2 = 0
+    
+#     for j in range(N):
+#         for i in range(j):
+#             if cluster_labels[i] == cluster_labels[j]:
+#                 num_term_2 += sim_mat[:j - 1, j].sum()
+    
+#     num_term_2 /= c
+    
+#     den_term_1 = 0
+    
+#     for j in range(N):
+#         for i in range(j):
+#             den_term_1 += sim_mat[i][j]
+            
+#             if cluster_labels[i] == cluster_labels[j]:
+#                 den_term_1 += 1
+    
+#     den_term_1 /= 2
+    
+#     num = num_term_1 - num_term_2
+#     den = den_term_1 - num_term_2
+    
+#     return num / den
+
+#############################################################################################
+
+cdef compute_mpear(int[:] cluster_labels, double[:,:] sim_mat):
     '''
     Compute MPEAR (Fritsch and Ickstadt 2009, DOI:10.1214/09-BA414).
     This function and accessory routines were taken with little 
@@ -28,35 +81,21 @@ def compute_mpear(cluster_labels, sim_mat):
     :rtype: float
     
     '''
-    N = sim_mat.shape[0]
-    
-    c = np.exp(log_binomial_coefficient(N, 2))
-    
-    num_term_1 = 0
-    
-    for j in range(N):
-        for i in range(j):
-            if cluster_labels[i] == cluster_labels[j]:
-                num_term_1 += sim_mat[i][j]
-    
-    num_term_2 = 0
-    
-    for j in range(N):
-        for i in range(j):
-            if cluster_labels[i] == cluster_labels[j]:
-                num_term_2 += sim_mat[:j - 1, j].sum()
-    
-    num_term_2 /= c
-    
-    den_term_1 = 0
+    cdef int N = sim_mat.shape[0]
+    cdef double c = np.exp(log_binomial_coefficient(N, 2))
+    cdef double num_term_1 = 0
+    cdef double num_term_2 = 0
+    cdef double den_term_1 = 0
     
     for j in range(N):
         for i in range(j):
             den_term_1 += sim_mat[i][j]
-            
             if cluster_labels[i] == cluster_labels[j]:
+                num_term_1 += sim_mat[i][j]
+                num_term_2 += sim_mat[:j - 1, j].sum()
                 den_term_1 += 1
     
+    num_term_2 /= c
     den_term_1 /= 2
     
     num = num_term_1 - num_term_2

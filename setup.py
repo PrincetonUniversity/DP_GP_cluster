@@ -4,7 +4,8 @@ from distutils.extension import Extension
 
 # ext_modules = [Extension("adjust/solvers_opt", ["adjust/solvers_opt.pyx"])] 
 
-ext_modules = [Extension("DP_GP.core", ["DP_GP/core.pyx"])]
+ext_modules = [Extension("DP_GP.core", ["DP_GP/core.pyx"]),
+               Extension("DP_GP.cluster_tools", ["DP_GP/cluster_tools.pyx"])]
                          
 setup(name='DP_GP_cluster',
       version='0.1',
