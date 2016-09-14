@@ -1,0 +1,8 @@
+language: python
+python:
+  - "2.7"
+install:
+  # Build dependencies
+  - pip install -r requirements.txt
+script:
+  - DP_GP_cluster.py -i test/test.txt -o test/test -p png -n 20 --plot
