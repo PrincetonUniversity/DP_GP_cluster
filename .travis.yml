@@ -4,6 +4,6 @@ python:
 install:
   # Build dependencies
   - pip install -r requirements.txt
-  - python setup.py XXX
+  - python setup.py install
 script:
   - DP_GP_cluster.py -i test/test.txt -o test/test -p png -n 20 --plot
