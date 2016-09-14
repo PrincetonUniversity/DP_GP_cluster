@@ -2,4 +2,4 @@ GPy>= 0.8.8
 pandas
 numpy
 scipy>= 0.14
-matplotlib.pyplot
+matplotlib
