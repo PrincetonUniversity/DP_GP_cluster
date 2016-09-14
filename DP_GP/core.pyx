@@ -286,8 +286,10 @@ class dp_cluster():
                 
             # keep track of neg. log-likelihood and hyperparameters
             self.sigma_n_at_iters.append(self.sigma_n)
-            self.sigma_f_at_iters.append(np.sqrt(self.model.sum['rbf.variance'][0]))
-            self.l_at_iters.append(np.sqrt(self.model.sum['rbf.lengthscale'][0]))
+#             self.sigma_f_at_iters.append(np.sqrt(self.model.sum['rbf.variance'][0]))
+#             self.l_at_iters.append(np.sqrt(self.model.sum['rbf.lengthscale'][0]))
+            self.sigma_f_at_iters.append(np.sqrt(self.model.sum.rbf.variance))
+            self.l_at_iters.append(np.sqrt(self.model.sum.rbf.lengthscale))
             self.NLL_at_iters.append( - float(self.model.log_likelihood()) )
             self.update_iters.append(iter_num)
             
