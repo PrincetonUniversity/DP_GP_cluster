@@ -5,4 +5,4 @@ install:
   # Build dependencies
   - pip install -r requirements.txt
 script:
-  - DP_GP_cluster.py -i test/test.txt -o test/test -p png -n 20 --plot
+  - DP_GP_cluster.py -i test/test.txt -o test/testX -p png -n 20 --plot
