@@ -14,6 +14,12 @@ Contents:
    Introduction
    Installation
    Usage
+   License
+
+Source
+======
+
+   Source
 
 Indices and tables
 ==================
