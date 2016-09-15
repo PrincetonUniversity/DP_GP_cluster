@@ -1,46 +1,10 @@
-DP_GP package
-=============
+DP_GP
+=====
 
-Submodules
-----------
+.. toctree::
+   :maxdepth: 4
 
-DP_GP.cluster_tools module
---------------------------
+   DP_GP
+   DP_GP_cluster
+   DP_GP_cluster_post_gibbs_sampling
 
-.. automodule:: DP_GP.cluster_tools
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-DP_GP.core module
------------------
-
-.. automodule:: DP_GP.core
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-DP_GP.plot module
------------------
-
-.. automodule:: DP_GP.plot
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-DP_GP.utils module
-------------------
-
-.. automodule:: DP_GP.utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: DP_GP
-    :members:
-    :undoc-members:
-    :show-inheritance:
