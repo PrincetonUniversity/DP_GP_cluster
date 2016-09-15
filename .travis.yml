@@ -8,22 +8,15 @@ os:
     language: generic
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-#         brew update
-#         brew install python2.7
-#         virtualenv venv -p python2.7
-#         source venv/bin/activate
-        export PATH=$PATH:~/Library/Python/2.7/bin/
-    else
-        wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-        chmod +x miniconda.sh
-        ./miniconda.sh -b
-        export PATH=/home/travis/miniconda2/bin:$PATH
-        conda update --yes conda
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export PATH=$PATH:~/Library/Python/2.7/bin/; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod +x miniconda.sh; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./miniconda.sh -b; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export PATH=/home/travis/miniconda2/bin:$PATH; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then conda update --yes conda; fi
         # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
-        sudo rm -rf /dev/shm
-        sudo ln -s /run/shm /dev/shm
-    fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo rm -rf /dev/shm; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo ln -s /run/shm /dev/shm; fi
 
 install:
   - conda install --yes python=$TRAVIS_PYTHON_VERSION pandas numpy scipy matplotlib cython scikit-learn 
