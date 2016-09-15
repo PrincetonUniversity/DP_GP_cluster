@@ -19,6 +19,9 @@ Contents:
 Source Code
 ===========
 
+.. toctree::
+   :maxdepth: 3
+
    Source
 
 Indices and tables
