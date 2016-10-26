@@ -69,7 +69,7 @@ def log_factorial(n):
 
 #############################################################################################
 
-cdef compute_mpear(int[:] cluster_labels, double[:,:] sim_mat):
+cdef compute_mpear(short[:] cluster_labels, double[:,:] sim_mat):
     '''
     Compute MPEAR (Fritsch and Ickstadt 2009, DOI:10.1214/09-BA414).
     This function and accessory routines were taken with little 
@@ -89,12 +89,13 @@ cdef compute_mpear(int[:] cluster_labels, double[:,:] sim_mat):
     cdef double num_term_2 = 0
     cdef double den_term_1 = 0
     
+    cdef size_t i, j
     for j in range(N):
         for i in range(j):
             den_term_1 += sim_mat[i][j]
             if cluster_labels[i] == cluster_labels[j]:
                 num_term_1 += sim_mat[i][j]
-                num_term_2 += sim_mat[:j - 1, j].sum()
+                num_term_2 += sum(sim_mat[:j - 1, j])
                 den_term_1 += 1
     
     num_term_2 /= c
@@ -109,7 +110,13 @@ cdef compute_mpear(int[:] cluster_labels, double[:,:] sim_mat):
 
 def relabel_clustering(cluster_labels):
     '''
-    Given some cluster labels, relabel (equivalently) so that labels start at 1.
+    Given some cluster labels, re-label (in an equivalent manner) so that labels start at 1.
+    :param cluster_labels: cluster labels
+    :type cluster_labels: numpy array of ints
+    
+    :returns: new_labels
+        new_labels: new cluster labels
+        :type new_labels: list
     '''
     clust_dict = {}
     new_label = 1
@@ -128,7 +135,7 @@ def relabel_clustering(cluster_labels):
 
 def compute_sq_dist(S, S_new):   
     '''
-    Compute the squared distance between two matrices.    
+    Compute the squared distance between two numpy matrices.
     '''
     diff = S - S_new
     sq_dist = np.sum(np.dot(diff, diff))
@@ -146,11 +153,13 @@ def best_clustering_by_mpear(clusterings, sim_mat):
     :param sim_mat: sim_mat[i,j] = (# samples gene i in cluster with gene j)/(# total samples)
     :type sim_mat: numpy array of (0-1) floats
     
-    :rtype: numpy array of best cluster labels
-    
+    :returns: best_cluster_labels
+        best_cluster_labels: best clustering
+        :type best_cluster_labels: list    
     """
     max_pear = 0
     
+    clusterings = clusterings.astype(np.int16)
     for i in range(len(clusterings)):
         
         pear = compute_mpear(clusterings[i,], sim_mat)
@@ -160,8 +169,8 @@ def best_clustering_by_mpear(clusterings, sim_mat):
             max_pear = pear
             best_cluster_labels = clusterings[i]
     
-    new_labels = relabel_clustering(best_cluster_labels)
-    return new_labels
+    best_cluster_labels = relabel_clustering(best_cluster_labels)
+    return best_cluster_labels
 
 #############################################################################################
 
@@ -175,8 +184,9 @@ def best_clustering_by_log_likelihood(clusterings, log_post_list):
     :param log_post_list: list of log posterior likelihood over the course of Gibbs sampling
     :type log_post_list: list of floats
     
-    :rtype: numpy array of best cluster labels
-    
+    :returns: best_cluster_labels
+        best_cluster_labels: best clustering
+        :type best_cluster_labels: list    
     """
     max_post = -np.inf
     
@@ -187,8 +197,8 @@ def best_clustering_by_log_likelihood(clusterings, log_post_list):
             max_post = post
             best_cluster_labels = clusterings[i]
     
-    new_labels = relabel_clustering(best_cluster_labels)
-    return new_labels
+    best_cluster_labels = relabel_clustering(best_cluster_labels)
+    return best_cluster_labels
 
 #############################################################################################
 
@@ -202,8 +212,9 @@ def best_clustering_by_sq_dist(clusterings, sim_mat):
     :param sim_mat: sim_mat[i,j] = (# samples gene i in cluster with gene j)/(# total samples)
     :type sim_mat: numpy array of (0-1) floats
     
-    :rtype: numpy array of best cluster labels
-    
+    :returns: best_cluster_labels
+        best_cluster_labels: best clustering
+        :type best_cluster_labels: list    
     """
     
     min_dist = np.inf
@@ -225,8 +236,8 @@ def best_clustering_by_sq_dist(clusterings, sim_mat):
             min_dist = dist
             best_cluster_labels = clusterings[i]
     
-    new_labels = relabel_clustering(best_cluster_labels)
-    return new_labels
+    best_cluster_labels = relabel_clustering(best_cluster_labels)
+    return best_cluster_labels
 
 def best_clustering_by_h_clust(clusterings, method):
     """
@@ -238,12 +249,13 @@ def best_clustering_by_h_clust(clusterings, method):
     :param sim_mat: sim_mat[i,j] = (# samples gene i in cluster with gene j)/(# total samples)
     :type sim_mat: numpy array of (0-1) floats
     
-    :rtype: numpy array of best cluster labels
-    
+    :returns: best_cluster_labels
+        best_cluster_labels: best clustering
+        :type best_cluster_labels: list    
     """
     best_cluster_labels = fclusterdata(clusterings, 0.99, method=method, metric='hamming')
-    new_labels = relabel_clustering(best_cluster_labels)
-    return new_labels
+    best_cluster_labels = relabel_clustering(best_cluster_labels)
+    return best_cluster_labels
 
 #############################################################################################
 
@@ -255,6 +267,12 @@ def save_cluster_membership_information(optimal_cluster_labels, output):
               .
               .
               .
+              
+    :param optimal_cluster_labels: dictionary linking cluster to all genes in cluster
+    :type optimal_cluster_labels: dict of lists
+    :param output: absolute path to output
+    :type output: str
+    
     """
     
     handle = open(output, "w")

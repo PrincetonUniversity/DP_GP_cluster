@@ -82,7 +82,7 @@ def read_gene_expression_matrices(gene_expression_matrices, true_times, do_not_m
             else:
                 t = np.array(range(gene_expression_matrix.shape[1])).astype('float') # equally spaced time points
             if i != 0:
-                gene_expression_array = np.dstack((gene_expression_array, gene_expression_matrix))
+                gene_expression_array = np.dstack((gene_expression_array, np.array(gene_expression_matrix)))
             else:
                 gene_expression_array = np.array(gene_expression_matrix)
         

@@ -65,15 +65,14 @@ of a heatmap with dendrogram.
 
 ##############################################################################
 #
-#  Set-up arguments
+#  Required arguments
 #
 ##############################################################################
 
-parser.add_argument("-i", "--input", dest="gene_expression_matrix", action="store", \
+parser.add_argument("-i", "--input", nargs='+', dest="gene_expression_matrix", action="store", \
                   help="""required, e.g. /path/to/gene_expression_matrix.txt
-
-or /path/to/gene_expression_matrix.rep1.txt,/path/to/gene_expression_matrix.rep2.txt,etc.
-if there are replicates
+or /path/to/gene_expression_matrix.rep1.txt /path/to/gene_expression_matrix.rep2.txt etc.
+if there are replicates.
 
 where the format of the gene_expression_matrix.txt is:
 
@@ -133,23 +132,24 @@ with six panels/clusters per figure:
 /path/to/output_path_prefix_gene_expression_fig_N.{pdf/png/svg}
 
 """)
+
+##############################################################################
+#
+#  Optional sampling arguments
+#
+##############################################################################
+
 parser.add_argument("-n", "--max_num_iters", dest="max_num_iterations", type=int, default=1000, \
                   help="""optional, [default=1000]
 Maximum number of Gibbs sampling iterations.
  
 """)
-parser.add_argument("--max_iters", dest="max_iters", type=int, default=1000, \
-                  help="""optional, [default=1000]
-Maximum number of optimization iterations.
- 
-""")
 parser.add_argument("-s", "--thinning_param", dest="s", type=int, default=3, \
                   help="""optional, [default=3]
-Take every s sample during Gibbs iterations to ensure independence between
+Take every sth sample during Gibbs iterations to ensure independence between
 samples. 
 
 """)
-
 parser.add_argument("--optimizer", dest="optimizer", type=str, default='lbfgsb', \
                   help="""optional, [default=lbfgsb]
 Specify the optimization technique used to update GP hyperparameters
@@ -160,7 +160,11 @@ simplex = Nelder-Mead simplex
 scg = stochastic conjugate gradient 
 
 """)
-
+parser.add_argument("--max_iters", dest="max_iters", type=int, default=1000, \
+                  help="""optional, [default=1000]
+Maximum number of optimization iterations.
+ 
+""")
 parser.add_argument("-a", "--alpha", dest="alpha", type=float, default=1., \
                   help="""optional, [default=1.0]   
 alpha, or the concentration parameter, determines how likely it is that 
@@ -174,6 +178,56 @@ Number of empty clusters available at each iteration, or new "tables"
 in terms of the Chinese restaurant process.
 
 """)
+parser.add_argument("--check_convergence", action='store_true', \
+                  help="""optional, [default=do not check for convergence but run until max iterations]   
+If --check_convergence, then check for convergence, else run until max iterations.
+
+""")
+parser.add_argument("-c", "--criterion", dest="criterion", type=str, default='MAP', \
+                  help="""optional, [default=MAP]
+Specify the criterion by which you would like to select the optimal clustering
+among "MAP", "MPEAR", "least_squares", "h_clust_avg", and "h_clust_comp" where:
+
+MAP = maximum a posteriori
+MPEAR = Posterior expected adjusted Rand (see Fritsch and Ickstadt 2009, DOI:10.1214/09-BA414) 
+least_squares = minimize squared distance between clustering and posterior similarity matrix 
+(see Dahl 2006, "Model-Based Clustering...")
+h_clust_avg = hierarchical clustering by average linkage
+h_clust_comp = hierarchical clustering by complete linkage
+
+Or, you may cluster genes post-hoc according to a criterion not implemented here 
+using the "_posterior_similarity_matrix.txt" or "_clusterings.txt" file.
+
+""")
+
+##############################################################################
+#
+#  Optional input transformation arguments
+#
+##############################################################################
+
+parser.add_argument("--true_times", action='store_true', dest="true_times", \
+                  help="""optional, [default=False]   
+Set this flag if the header contains true time values (e.g. 0, 0.5, 4, 8,...)
+and it is desired that the covariance kernel recognizes the true
+time spacing between sampling points, which need not be constant.
+Otherwise, it is assumed that the sampling times are equally spaced, 
+or in other words, that the rate of change in expression is roughly equivalent
+between all neighboring time points.
+
+""")
+parser.add_argument("--do_not_mean_center", action='store_true', dest="do_not_mean_center", \
+                  help="""optional, [default=False]   
+Set this flag if you desire the gene expression data to be clustered
+without mean-centering (left untransformed).
+
+""")
+
+##############################################################################
+#
+#  Optional hyperprior arguments
+#
+##############################################################################
 
 parser.add_argument("--sigma_n2_shape", dest="sigma_n2_shape", type=float, default=12.,
                   help="""optional, [default=12 or estimated from replicates]
@@ -205,46 +259,15 @@ parser.add_argument("--sigma_f_sigma", dest="sigma_f_sigma", type=float, default
 for signal variance [default=1]
 
 """)
-parser.add_argument("--check_convergence", action='store_true', \
-                  help="""optional, [default=do not check for convergence but run until max iterations]   
-If --check_convergence, then check for convergence, else run until max iterations.
 
-""")
+##############################################################################
+#
+#  Optional plot arguments
+#
+##############################################################################
+
 parser.add_argument("--plot", action='store_true', \
                   help="""optional, [default=False] Do not plot anything. if --plot indicated, then plot]
-
-""")
-parser.add_argument("--true_times", action='store_true', dest="true_times", \
-                  help="""optional, [default=False]   
-Set this flag if the header contains true time values (e.g. 0, 0.5, 4, 8,...)
-and it is desired that the covariance kernel recognizes the true
-time spacing between sampling points, which need not be constant.
-Otherwise, it is assumed that the sampling times are equally spaced, 
-or in other words, that the rate of change in expression is roughly equivalent
-between all neighboring time points.
-
-""")
-parser.add_argument("--do_not_mean_center", action='store_true', dest="do_not_mean_center", \
-                  help="""optional, [default=False]   
-Set this flag if you desire the gene expression data to be clustered
-without mean-centering (left untransformed).
-
-""")
-
-parser.add_argument("-c", "--criterion", dest="criterion", type=str, default='MAP', \
-                  help="""optional, [default=MAP]
-Specify the criterion by which you would like to select the optimal clustering
-among "MAP", "MPEAR", "least_squares", "h_clust_avg", and "h_clust_comp" where:
-
-MAP = maximum a posteriori
-MPEAR = Posterior expected adjusted Rand (see Fritsch and Ickstadt 2009, DOI:10.1214/09-BA414) 
-least_squares = minimize squared distance between clustering and posterior similarity matrix 
-(see Dahl 2006, "Model-Based Clustering...")
-h_clust_avg = hierarchical clustering by average linkage
-h_clust_comp = hierarchical clustering by complete linkage
-
-Or, you may cluster genes post-hoc according to a criterion not implemented here 
-using the "_posterior_similarity_matrix.txt" or "_clusterings.txt" file.
 
 """)
 parser.add_argument("-p", "--plot_types", dest="plot_types", type=str, default='pdf', \
@@ -257,6 +280,89 @@ parser.add_argument("-t", "--time_unit", dest="time_unit", type=str, default='',
                   help="""optional, [default=None] time unit, used solely for plotting purposes.
  
 """)
+
+##############################################################################
+#
+#  Optional post-processing arguments
+#
+##############################################################################
+
+parser.add_argument("--post_process", action='store_true', \
+                  help="""optional, [default=False] Sampling already completed, now post-process
+by choosing optimal clustering and plotting expression.
+
+""")
+parser.add_argument("--sim_mat", dest="sim_mat", action="store", default=None, \
+                  help="""optional, e.g. /path/to/similarity_matrix.txt
+
+If DP_GP_cluster.py has already been run, user can
+choose to use similarity matrix to return an optimal
+clustering according to one of the following criteria: 
+h_clust_avg, h_clust_comp, least_squares.
+
+The format of the similarity_matrix.txt is:
+
+        gene_0 gene_1 gene_2    gene_n
+gene_0  1.0    0.89   0.12  ... 0.0
+gene_1  0.89   1.0    0.2   ... 0.01
+gene_2  0.12   0.2    1.0   ... 0.7
+...     ...    ...    ...   ... ...
+gene_n  0.0    0.01   0.7   ... 1.0
+
+Note that the first row is a header and the first 
+column is an index, both of which contains an identical
+list of genes.  In each cell, S[i,j], is the fraction of 
+samples that gene_i was in the same cluster as gene_j.
+Thus, all entries are in the unit interval [0,1].
+Entries are delimited by whitespace (space or tab), 
+and for this reason, do not include spaces in gene names.
+
+
+""")
+parser.add_argument("--clusterings", dest="clusterings", action="store",  default=None, \
+                  help="""optional, e.g. /path/to/clusterings.txt
+
+If DP_GP_cluster.py has already been run, user can
+choose to use clusterings to return an optimal
+clustering according to one of the following criteria: 
+MPEAR, MAP (with log_likelihoods.txt), least_squares.
+
+The format of the clusterings.txt is:
+
+gene_0 gene_1 gene_2    gene_n
+1      1      2     ... 33
+10     10     2     ... 33
+13     13     13    ... 33
+...    ...    ...   ... ... 
+49     17     17    ... 100
+
+Note that the first row is a header that lists all genes.
+Each row is a different sample from the posterior distribution
+of clusterings. Integer values denote cluster membership.
+Cluster numbers need not correspond across rows/samples, and
+only necessarily apply within row/sample.
+
+""")
+parser.add_argument("--log_likelihoods", dest="log_likelihoods", action="store",  default=None, \
+                  help=("""optional, e.g. /path/to/log_likelihoods.txt
+
+If DP_GP_cluster.py has already been run, user can
+choose to use log likelihoods to return an optimal
+clustering according to MAP (with clusterings.txt).
+
+where the format of the log_likelihoods.txt is:
+
+-10200.322
+-9987.452
+-12291.992
+...
+-10002.403
+
+Each row corresponds to the posterior log-likelihood and also
+corresponds to each row in clusterings.txt. 
+
+"""))
+
 parser.add_argument('--version', action='version', version='DP_GP_cluster.py v.0.1')
 
 #############################################################################################
@@ -272,13 +378,44 @@ if (args.gene_expression_matrix is None) | (args.output_path_prefix is None):
     parser.print_help() 
     exit()
 
-# parse required arguments:
-output_path_prefix = args.output_path_prefix
-
-# parse optional arguments:
 if args.criterion not in ["MAP", "MPEAR", "least_squares", "h_clust_avg", "h_clust_comp"]:
     raise ValueError("""incorrect criterion. Please choose from among the following options:
 MPEAR, MAP, least_squares, h_clust_avg, h_clust_comp""")
+
+#############################################################################################
+#
+#    Parse args for script's usage for post-processing.
+#    Used after sampling has been completed.
+#
+#############################################################################################
+
+if args.post_process:
+    print "Reading sampling results."
+    if args.criterion == 'MPEAR' or args.criterion == 'least_squares':
+        if not args.clusterings or not args.sim_mat:
+            print "ERROR: if criterion = MPEAR or least_squares, must provide both clusterings and similarity_matrix"
+            exit()
+    elif args.criterion == 'MAP':
+        if not args.clusterings or not args.log_likelihoods:
+            print "ERROR: if criterion = MAP, must provide both clusterings and log_likelihoods"
+            exit()
+    elif args.criterion == 'h_clust_avg' or args.criterion == 'h_clust_comp':
+        if not args.sim_mat:
+            print "ERROR: if criterion = h_clust_avg or h_clust_comp, must provide similarity_matrix"
+            exit()
+
+if args.clusterings:
+    sampled_clusterings = pd.read_csv(args.clusterings, delim_whitespace=True)
+    gene_names = list(sampled_clusterings.columns)
+
+if args.sim_mat:
+    sim_mat = pd.read_csv(args.sim_mat, delim_whitespace=True, index_col=0)
+    gene_names = list(sim_mat.columns)
+    sim_mat = np.array(sim_mat)
+
+if args.log_likelihoods:
+    with open(args.log_likelihoods, 'r') as f:
+        log_likelihoods = [float(line.strip()) for line in f]
 
 # set random seed to make random calls reproducible
 np.random.seed(1234)
@@ -290,7 +427,7 @@ np.random.seed(1234)
 #############################################################################################
 
 gene_expression_matrix, gene_names, sigma_n, sigma_n2_shape, sigma_n2_rate, t = \
-core.read_gene_expression_matrices( args.gene_expression_matrix.split(','), args.true_times, args.do_not_mean_center, args.sigma_n2_shape, args.sigma_n2_rate)
+core.read_gene_expression_matrices( args.gene_expression_matrix, args.true_times, args.do_not_mean_center, args.sigma_n2_shape, args.sigma_n2_rate)
 
 # scale t such that the mean time interval between sampling points is one unit
 # this ensures that initial parameters for length-scale and signal variance are reasonable
@@ -319,15 +456,19 @@ sq_dist_eps, post_eps  = 0.01, 1e-5
 #
 #############################################################################################
 
-GS = core.gibbs_sampler(gene_expression_matrix, t, args.max_num_iterations, args.max_iters, args.optimizer, \
-                   burnIn_phaseI, burnIn_phaseII, args.alpha, args.m, args.s, args.check_convergence, sigma_n,  \
-                   sigma_n2_shape, sigma_n2_rate, args.length_scale_mu, args.length_scale_sigma, args.sigma_f_mu, args.sigma_f_sigma, sq_dist_eps, post_eps)
-
-sim_mat, all_clusterings, sampled_clusterings, log_likelihoods, iter_num = GS.sampler()
-
-sampled_clusterings.columns = gene_names
-all_clusterings.columns = gene_names
-
+if not args.post_process:
+    print "Begin sampling"
+    GS = core.gibbs_sampler(gene_expression_matrix, t, args.max_num_iterations, args.max_iters, args.optimizer, \
+                       burnIn_phaseI, burnIn_phaseII, args.alpha, args.m, args.s, args.check_convergence, sigma_n,  \
+                       sigma_n2_shape, sigma_n2_rate, args.length_scale_mu, args.length_scale_sigma, args.sigma_f_mu, args.sigma_f_sigma, sq_dist_eps, post_eps)
+    
+    sim_mat, all_clusterings, sampled_clusterings, log_likelihoods, iter_num = GS.sampler()
+    
+    sampled_clusterings.columns = gene_names
+    all_clusterings.columns = gene_names
+else:
+    iter_num = 0
+    
 #############################################################################################
 #
 #    Find optimal clustering
@@ -348,7 +489,7 @@ elif args.criterion == 'h_clust_comp':
 
 # Given an optimal clustering, optimize the hyperparameters once again
 # because (1) hyperparameters are re-written at every iteration and (2) the particular clustering
-# may never have actually occurred during sampling, as may happen for hierarchical clustering.
+# may never have actually occurred during sampling, as may happen for h_clust_avg/h_clust_comp.
 
 optimal_cluster_labels = collections.defaultdict(list)
 optimal_cluster_labels_original_gene_names = collections.defaultdict(list)
@@ -367,10 +508,13 @@ for cluster, genes in optimal_cluster_labels.iteritems():
 #
 ############################################################################################## 
 
-core.save_posterior_similarity_matrix(sim_mat, gene_names, output_path_prefix)
-core.save_clusterings(sampled_clusterings, output_path_prefix)
-core.save_log_likelihoods(log_likelihoods, output_path_prefix)
-cluster_tools.save_cluster_membership_information(optimal_cluster_labels_original_gene_names, output_path_prefix + "_optimal_clustering.txt")
+if not args.post_process:
+    print "Saving sampling results."
+    core.save_posterior_similarity_matrix(sim_mat, gene_names, args.output_path_prefix)
+    core.save_clusterings(sampled_clusterings, args.output_path_prefix)
+    core.save_log_likelihoods(log_likelihoods, args.output_path_prefix)
+
+cluster_tools.save_cluster_membership_information(optimal_cluster_labels_original_gene_names, args.output_path_prefix + "_optimal_clustering.txt")
 
 #############################################################################################
 #
@@ -379,10 +523,13 @@ cluster_tools.save_cluster_membership_information(optimal_cluster_labels_origina
 ############################################################################################## 
 
 if args.plot:
-    
+    print "Plotting expression and sampling results."    
     plot_types = args.plot_types.split(',')
     
-    sim_mat_key = plot.plot_similarity_matrix(sim_mat, output_path_prefix, plot_types)
-    core.save_posterior_similarity_matrix_key([gene_names[idx] for idx in sim_mat_key], output_path_prefix)
-    plot.plot_cluster_sizes_over_iterations(np.array(all_clusterings), burnIn_phaseI, burnIn_phaseII, args.m, output_path_prefix, plot_types)
-    plot.plot_cluster_gene_expression(optimal_clusters_GP, pd.DataFrame(gene_expression_matrix, index=gene_names, columns=t), t, args.time_unit, output_path_prefix, plot_types)
+    if not args.post_process:
+        sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
+        core.save_posterior_similarity_matrix_key([gene_names[idx] for idx in sim_mat_key], args.output_path_prefix)
+        plot.plot_cluster_sizes_over_iterations(np.array(all_clusterings), burnIn_phaseI, burnIn_phaseII, args.m, args.output_path_prefix, plot_types)
+    
+    plot.plot_cluster_gene_expression(optimal_clusters_GP, pd.DataFrame(gene_expression_matrix, index=gene_names, columns=t), t, args.time_unit, args.output_path_prefix, plot_types, args.do_not_mean_center)
+

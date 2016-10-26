@@ -20,7 +20,8 @@ import GPy
 
 def adjust_spines(ax, spines):
     ''' 
-    see matplotlib examples
+    see matplotlib examples:
+    http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
     ''' 
     for loc, spine in ax.spines.items():
         if loc in spines:
@@ -41,7 +42,7 @@ def adjust_spines(ax, spines):
         # no xaxis ticks
         ax.xaxis.set_ticks([])
 
-def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit, output_path_prefix, plot_types):
+def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit, output_path_prefix, plot_types, do_not_mean_center):
     ''' 
     Plot gene expression over a time course with a panel for each cluster. Each panel contains
     transparent red lines for the expression of each individual gene within the cluster, the
@@ -87,7 +88,8 @@ def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit,
             v = v[:,0]
             GPy.plotting.matplot_dep.base_plots.gpplot(Xgrid, mu, mu - 2*v**(0.5),  mu + 2*v**(0.5), ax=ax)
             ax.set_xlim((min(t),max(t)))
-#             ax.set_ylim((-3,3))
+            if not do_not_mean_center:
+                ax.set_ylim((-3,3))
             
             # plot an x-axis at zero
             plt.axhline(0, color='black', ls='--', alpha=0.5)
@@ -95,23 +97,17 @@ def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit,
             for gene in list(clusters[ID].members):
                 ax.plot(t, np.array(gene_expression_matrix.ix[gene]), color='red', alpha=0.1)
             
+            # plot mean expression of cluster
             ax.plot(Xgrid, mu, color='blue')
             # create legend
-#             light_blue_patch = mpatches.Rectangle([0, 0], 1, 1, facecolor='#33CCFF', edgecolor='none', lw=0, alpha=0.3)
             light_blue_patch = mpatches.Rectangle([0, 0], 1, 1, facecolor='#33CCFF', edgecolor='blue', lw=1, alpha=0.3)
             red_line = mlines.Line2D([], [], color='red', label='individual gene trajectory')
-        #     ax.legend(handles=[blue_line, light_blue_patch, red_line], \
-        #               labels=['cluster mean', u'cluster mean \u00B1 2 x std. dev.', 'individual gene trajectory']
-        #               loc=4, frameon=False, prop={'size':8})
             ax.legend([ax.lines[0], light_blue_patch, red_line], \
                       ['cluster mean', u'cluster mean \u00B1 2 x std. dev.', 'individual gene trajectory'], 
                       loc=4, frameon=False, prop={'size':6})
-#             ax.legend([ax.lines[0], ax.lines[1], ax.lines[-1]], \
-#                       ['cluster mean', u'cluster mean \u00B1 2 x std. dev.', 'individual gene trajectory'], 
-#                       loc=4, frameon=False, prop={'size':6})
             # prettify axes
             adjust_spines(ax, ['left', 'bottom'])
-            # label:
+            # label x-axis
             if time_unit == '':
                 ax.set_xlabel("Time")
             else:
@@ -128,12 +124,14 @@ def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit,
             plt.savefig(output_path_prefix + '_gene_expression_fig_' + str(c+1) + '.' + plot_type)
 
 #############################################################################################
-   
+
 def plot_similarity_matrix(sim_mat, output_path_prefix, plot_types):
     ''' 
     Plot the posterior similarity matrix as heatmap with dendrogram. 
+    
     dim(S) = n x n, where n = total number of genes.
     S[i,j] = (# samples gene i in cluster with gene j)/(# total samples)
+    
     Hierarchically cluster by complete linkage for orderliness of visualization.
     Although of questionable usefulness, function returns all gene names in
     the order in which they were clustered. This list might be used to visually inspect heatmap,
@@ -196,7 +194,7 @@ def plot_similarity_matrix(sim_mat, output_path_prefix, plot_types):
 def plot_cluster_sizes_over_iterations(all_clusterings, burnIn_phaseI, burnIn_phaseII, m, output_path_prefix, plot_types):
     ''' 
     Plot size of clusters over GS iterations after burn-in phase I 
-    where x-axis is iteration and height of band is equivalent to 
+    where x-axis is iteration and vertical thickness of band is proportional to 
     size of cluster. Each cluster has unique color. Burn-in phase II
     is indicated with a vertical line.
     
