@@ -5,10 +5,6 @@ Created on 2015-03-27
 '''
 # Force matplotlib to not use any Xwindows backend, which should enable
 # the script to be run on high-performance computing cluster without error
-import matplotlib
-matplotlib.use('Agg')
-font = {'size'   : 8}
-matplotlib.rc('font', **font)
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
@@ -42,7 +38,7 @@ def adjust_spines(ax, spines):
         # no xaxis ticks
         ax.xaxis.set_ticks([])
 
-def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit, output_path_prefix, plot_types, do_not_mean_center):
+def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit, output_path_prefix, plot_types, unscaled, do_not_mean_center):
     ''' 
     Plot gene expression over a time course with a panel for each cluster. Each panel contains
     transparent red lines for the expression of each individual gene within the cluster, the
@@ -88,7 +84,7 @@ def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit,
             v = v[:,0]
             GPy.plotting.matplot_dep.base_plots.gpplot(Xgrid, mu, mu - 2*v**(0.5),  mu + 2*v**(0.5), ax=ax)
             ax.set_xlim((min(t),max(t)))
-            if not do_not_mean_center:
+            if ( not unscaled ) and ( not do_not_mean_center ) :
                 ax.set_ylim((-3,3))
             
             # plot an x-axis at zero
@@ -133,8 +129,8 @@ def plot_similarity_matrix(sim_mat, output_path_prefix, plot_types):
     S[i,j] = (# samples gene i in cluster with gene j)/(# total samples)
     
     Hierarchically cluster by complete linkage for orderliness of visualization.
-    Although of questionable usefulness, function returns all gene names in
-    the order in which they were clustered. This list might be used to visually inspect heatmap,
+    Function returns all gene names in the order in which they were clustered/displayed.
+    This list might be used to visually inspect heatmap,
     yet heatmap is largely intended for high-level view of data.
     
     :param sim_mat: sim_mat[i,j] = (# samples gene i in cluster with gene j)/(# total samples)
@@ -155,13 +151,15 @@ def plot_similarity_matrix(sim_mat, output_path_prefix, plot_types):
     fig = plt.figure(figsize=(8,8))
     ax1 = fig.add_axes([0,0.02,0.2,0.6])
     Y = sch.linkage(dist_mat, method='complete')
-    Z1 = sch.dendrogram(Y, orientation='right', color_threshold=np.inf )
+    # color_threshold=np.inf makes dendrogram black
+    Z1 = sch.dendrogram(Y, orientation='right', color_threshold=np.inf ) 
     ax1.set_xticks([])
     ax1.set_yticks([])
     ax1.axis('off')
     
     # Compute and plot top dendrogram.
     ax2 = fig.add_axes([0.2,0.6,0.6,0.2])
+    # color_threshold=np.inf makes dendrogram black
     Z2 = sch.dendrogram(Y, color_threshold=np.inf )
     sch.set_link_color_palette(['black'])
     ax2.set_xticks([])
@@ -171,12 +169,13 @@ def plot_similarity_matrix(sim_mat, output_path_prefix, plot_types):
     #Compute and plot the heatmap
     axmatrix = fig.add_axes([0.2,0.02,0.6,0.6])
     
+    # reorder similarity matrix by linkage
     idx1 = Z1['leaves']
     idx2 = Z2['leaves']
-    dist_mat = dist_mat[idx1,:]
-    dist_mat = dist_mat[:,idx2]
+    sim_mat = sim_mat[idx1[::-1],:]
+    sim_mat = sim_mat[:,idx2]
     
-    im = axmatrix.matshow(sim_mat, aspect='auto', origin='lower', cmap=plt.cm.binary)
+    im = axmatrix.matshow(sim_mat, aspect='auto', origin='lower', cmap="rainbow")
     axmatrix.set_xticks([])
     axmatrix.set_yticks([])
     

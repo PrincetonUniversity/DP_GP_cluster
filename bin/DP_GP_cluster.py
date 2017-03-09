@@ -216,10 +216,16 @@ or in other words, that the rate of change in expression is roughly equivalent
 between all neighboring time points.
 
 """)
+parser.add_argument("--unscaled", action='store_true', dest="unscaled", \
+                  help="""optional, [default=False]   
+Set this flag if you desire the gene expression data to be clustered
+without scaling (do not divide by standard deviation).
+
+""")
 parser.add_argument("--do_not_mean_center", action='store_true', dest="do_not_mean_center", \
                   help="""optional, [default=False]   
 Set this flag if you desire the gene expression data to be clustered
-without mean-centering (left untransformed).
+without mean-centering (do not subtract mean).
 
 """)
 
@@ -267,7 +273,12 @@ for signal variance [default=1]
 ##############################################################################
 
 parser.add_argument("--plot", action='store_true', \
-                  help="""optional, [default=False] Do not plot anything. if --plot indicated, then plot]
+                  help="""optional, [default=False] Do not plot anything. if --plot indicated, then plot.
+
+""")
+parser.add_argument("--save_cluster_GPs", action='store_true', \
+                  help="""optional, [default=False] if --save_cluster_GPs indicated, then save dictionary
+of optimal cluster GP parameters as encoded in GPy.
 
 """)
 parser.add_argument("-p", "--plot_types", dest="plot_types", type=str, default='pdf', \
@@ -426,8 +437,16 @@ np.random.seed(1234)
 #
 #############################################################################################
 
-gene_expression_matrix, gene_names, sigma_n, sigma_n2_shape, sigma_n2_rate, t = \
-core.read_gene_expression_matrices( args.gene_expression_matrix, args.true_times, args.do_not_mean_center, args.sigma_n2_shape, args.sigma_n2_rate)
+gene_expression_matrix, gene_names, t = \
+core.read_gene_expression_matrices(args.gene_expression_matrix, 
+                                   args.true_times, 
+                                   args.unscaled, 
+                                   args.do_not_mean_center)
+
+# take median of inverse gamma distribution to yield point
+# estimate of sigma_n
+sigma_n2_shape, sigma_n2_rate = args.sigma_n2_shape, args.sigma_n2_rate
+sigma_n = np.sqrt(1 / ((sigma_n2_shape + 1) * sigma_n2_rate))
 
 # scale t such that the mean time interval between sampling points is one unit
 # this ensures that initial parameters for length-scale and signal variance are reasonable
@@ -458,9 +477,11 @@ sq_dist_eps, post_eps  = 0.01, 1e-5
 
 if not args.post_process:
     print "Begin sampling"
-    GS = core.gibbs_sampler(gene_expression_matrix, t, args.max_num_iterations, args.max_iters, args.optimizer, \
-                       burnIn_phaseI, burnIn_phaseII, args.alpha, args.m, args.s, args.check_convergence, sigma_n,  \
-                       sigma_n2_shape, sigma_n2_rate, args.length_scale_mu, args.length_scale_sigma, args.sigma_f_mu, args.sigma_f_sigma, sq_dist_eps, post_eps)
+    GS = core.gibbs_sampler(gene_expression_matrix,t, args.max_num_iterations, args.max_iters, \
+                            args.optimizer, burnIn_phaseI, burnIn_phaseII, args.alpha, args.m, \
+                            args.s, args.check_convergence, sigma_n, sigma_n2_shape, sigma_n2_rate, \
+                            args.length_scale_mu, args.length_scale_sigma, args.sigma_f_mu, \
+                            args.sigma_f_sigma, sq_dist_eps, post_eps)
     
     sim_mat, all_clusterings, sampled_clusterings, log_likelihoods, iter_num = GS.sampler()
     
@@ -499,8 +520,21 @@ for gene, (gene_name, cluster) in enumerate(zip(gene_names, optimal_clusters)):
 
 optimal_clusters_GP = {}
 for cluster, genes in optimal_cluster_labels.iteritems():
-    optimal_clusters_GP[cluster] = core.dp_cluster(members=genes, sigma_n=sigma_n, X=np.vstack(t), Y=np.array(np.mat(gene_expression_matrix[genes,:])).T, iter_num_at_birth=iter_num)
-    optimal_clusters_GP[cluster] = optimal_clusters_GP[cluster].update_cluster_attributes(gene_expression_matrix, sigma_n2_shape, sigma_n2_rate, args.length_scale_mu, args.length_scale_sigma, args.sigma_f_mu, args.sigma_f_sigma, iter_num, args.max_iters, args.optimizer)
+    optimal_clusters_GP[cluster] = core.dp_cluster(members=genes, 
+                                                   sigma_n=sigma_n, 
+                                                   X=np.vstack(t), 
+                                                   Y=np.array(np.mat(gene_expression_matrix[genes,:])).T, 
+                                                   iter_num_at_birth=iter_num)
+    optimal_clusters_GP[cluster] = optimal_clusters_GP[cluster].update_cluster_attributes(gene_expression_matrix, 
+                                                                                          sigma_n2_shape, 
+                                                                                          sigma_n2_rate, 
+                                                                                          args.length_scale_mu, 
+                                                                                          args.length_scale_sigma, 
+                                                                                          args.sigma_f_mu, 
+                                                                                          args.sigma_f_sigma, 
+                                                                                          iter_num, 
+                                                                                          args.max_iters, 
+                                                                                          args.optimizer)
 
 #############################################################################################
 #
@@ -531,5 +565,22 @@ if args.plot:
         core.save_posterior_similarity_matrix_key([gene_names[idx] for idx in sim_mat_key], args.output_path_prefix)
         plot.plot_cluster_sizes_over_iterations(np.array(all_clusterings), burnIn_phaseI, burnIn_phaseII, args.m, args.output_path_prefix, plot_types)
     
-    plot.plot_cluster_gene_expression(optimal_clusters_GP, pd.DataFrame(gene_expression_matrix, index=gene_names, columns=t), t, args.time_unit, args.output_path_prefix, plot_types, args.do_not_mean_center)
+    plot.plot_cluster_gene_expression(optimal_clusters_GP, 
+                                      pd.DataFrame(gene_expression_matrix, index=gene_names, columns=t),
+                                      t, 
+                                      args.time_unit, 
+                                      args.output_path_prefix, 
+                                      plot_types, 
+                                      args.unscaled, 
+                                      args.do_not_mean_center)
 
+    
+#############################################################################################
+#
+#    Save clusters
+#
+############################################################################################## 
+
+if args.save_cluster_GPs:
+    param_df = pd.DataFrame({name:dp_cluster.model.param_array for name, dp_cluster in optimal_clusters_GP.iteritems()})    
+    param_df.to_csv(args.output_path_prefix + "_cluster_model_params.txt", sep='\t', index=False, header=True)
