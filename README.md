@@ -7,11 +7,11 @@ DP_GP_cluster clusters genes by expression over a time course using a Dirichlet 
 
 Create gene-by-gene posterior similarity matrix according to expression over time course and find optimal clustering of genes by expression over time course (and helpful plots):
     
-    DP_GP_cluster.py -i expression.txt -o output_prefix [ optional args, e.g. -n 1000 --true_times --criterion MAP... --plot ]
+    DP_GP_cluster.py -i expression.txt -o output_prefix [ optional args, e.g. -n 2000 --true_times --criterion MAP --plot ... ]
     
 Different clustering criteria may be applied after Gibbs sampling to yield different sets of clusters. Also, if `--plot` flag not indicated when the above script is called, plots can be generated post-sampling:
 
-    DP_GP_cluster_post_gibbs_sampling.py -i expression.txt \
+    DP_GP_cluster.py -i expression.txt \
     --sim_mat output_prefix_posterior_similarity_matrix.txt \
     --clusterings output_prefix_clusterings.txt \
     --criterion MPEAR \
@@ -38,15 +38,6 @@ Download source code and uncompress, then:
 ## Tests
 
 Describe and show how to run the tests with code examples.
-
-## Lab notebooks
-
-to be updated, ignore the below...
-
-[Methods](http://nbviewer.ipython.org/gist/IanMcDowell/24429d1816f7002c2558)
-Results comparison
-Results A549 dexamethasone
-Results halobacteria
 
 ## Citation
 
