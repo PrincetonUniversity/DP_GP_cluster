@@ -37,11 +37,12 @@ Download source code and uncompress, then:
 
 ## Tests
 
-Describe and show how to run the tests with code examples.
+    cd DP_GP_cluster
+    DP_GP_cluster.py -i test/test.txt -o test/test -p png -n 20 --plot
 
 ## Citation
 
-    bibtex citation of publication
+citation of publication
 
 ## License
 
