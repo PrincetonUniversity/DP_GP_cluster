@@ -66,10 +66,12 @@ When the `--plot` flat is indicated, the script plots (1) gene expression trajec
 
 #### Gene expression trajectories by cluster*
 ![expression](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/auxiliary/expression.png)
+
 *from McDowell et al. 2017, A549 dexamethasone exposure RNA-seq data
 
 #### Posterior similarity matrix
-![PSM](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/auxiliary/PSM.eps)
+![PSM](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/auxiliary/PSM.png)
+
 *from McDowell et al. 2017, _H. salinarum_ hydrogen peroxide exposure microarray data
 
 For more details on particular parameters, see detailed help message in script.
