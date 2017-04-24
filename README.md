@@ -2,22 +2,6 @@
 ## DP_GP_cluster
 
 DP_GP_cluster clusters genes by expression over a time course using a Dirichlet process Gaussian process model.
-
-## Code Example
-
-Create gene-by-gene posterior similarity matrix according to expression over time course and find optimal clustering of genes by expression over time course (and helpful plots):
-    
-    DP_GP_cluster.py -i expression.txt -o output_prefix [ optional args, e.g. -n 2000 --true_times --criterion MAP --plot ... ]
-    
-Different clustering criteria may be applied after Gibbs sampling to yield different sets of clusters. Also, if `--plot` flag not indicated when the above script is called, plots can be generated post-sampling:
-
-    DP_GP_cluster.py -i expression.txt \
-    --sim_mat output_prefix_posterior_similarity_matrix.txt \
-    --clusterings output_prefix_clusterings.txt \
-    --criterion MPEAR \
-    --plot --plot_types png,pdf \
-    --output output_prefix_MPEAR_optimal_clustering.txt \
-    --output_path_prefix output_prefix_MPEAR
     
 ## Motivation
 
@@ -39,6 +23,56 @@ Download source code and uncompress, then:
 
     cd DP_GP_cluster
     DP_GP_cluster.py -i test/test.txt -o test/test -p png -n 20 --plot
+
+## Code Examples
+
+To cluster genes by expression over time course and create gene-by-gene posterior similarity matrix:
+    
+    DP_GP_cluster.py -i /path/to/expression.txt -o /path/to/output_prefix [ optional args, e.g. -n 2000 --true_times --criterion MAP --plot ... ]
+    
+Above, `expression.txt` is of the format:
+
+    gene    1     2    3    ...    time_t
+    gene_1  10    20   5    ...    8
+    gene_2  3     2    50   ...    8
+    gene_3  18    100  10   ...    22
+    ...
+    gene_n  45    22   15   ...    60
+
+where the first row is a header containing the time points and the first column is an index containing all gene names. Entries are delimited by whitespace (space or tab), and for this reason, do not include spaces in gene names or time point names.
+
+From the above command, the optimal clustering will be saved at `/path/to/output_path_prefix_optimal_clustering.txt` in a simple tab-delimited format:
+
+    cluster	gene
+    1	gene_1
+    1	gene_23
+    2	gene_7
+    ...
+    k	gene_30
+    
+Because the optimal clustering is chosen after the entirety of Gibbs sampling, the script can be rerun with alternative clustering optimality criteria to yield different sets of clusters. Also, if `--plot` flag was not indicated when the above script is called, plots can be generated after sampling:
+
+    DP_GP_cluster.py \
+    -i /path/to/expression.txt \
+    --sim_mat /path/to/output_prefix_posterior_similarity_matrix.txt \
+    --clusterings /path/to/output_prefix_clusterings.txt \
+    --criterion MPEAR \
+    --post_process \
+    --plot --plot_types png,pdf \
+    --output /path/to/output_prefix_MPEAR_optimal_clustering.txt \
+    --output_path_prefix /path/to/output_prefix_MPEAR
+
+When the `--plot` flat is indicated, the script plots (1) gene expression trajectories by cluster along with the Gaussian Process parameters of each cluster and (2) the posterior similarity matrix in the form of a heatmap with dendrogram. For example:
+
+#### Gene expression trajectories by cluster*
+![expression](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/auxiliary/expression.png)
+*from McDowell et al. 2017, A549 dexamethasone exposure RNA-seq data
+
+#### Posterior similarity matrix
+![PSM](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/auxiliary/PSM.eps)
+*from McDowell et al. 2017, _H. salinarum_ hydrogen peroxide exposure microarray data
+
+For more details on particular parameters, see detailed help message in script.
 
 ## Citation
 

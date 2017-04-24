@@ -152,41 +152,35 @@ def plot_similarity_matrix(sim_mat, output_path_prefix, plot_types):
     ax1 = fig.add_axes([0,0.02,0.2,0.6])
     Y = sch.linkage(dist_mat, method='complete')
     # color_threshold=np.inf makes dendrogram black
-    Z1 = sch.dendrogram(Y, orientation='right', color_threshold=np.inf ) 
+    Z = sch.dendrogram(Y, orientation='left', link_color_func=lambda x: 'black' ) 
     ax1.set_xticks([])
     ax1.set_yticks([])
     ax1.axis('off')
     
-    # Compute and plot top dendrogram.
-    ax2 = fig.add_axes([0.2,0.6,0.6,0.2])
-    # color_threshold=np.inf makes dendrogram black
-    Z2 = sch.dendrogram(Y, color_threshold=np.inf )
-    sch.set_link_color_palette(['black'])
-    ax2.set_xticks([])
-    ax2.set_yticks([])
-    ax2.axis('off')
-    
+    ax1.invert_yaxis()
     #Compute and plot the heatmap
     axmatrix = fig.add_axes([0.2,0.02,0.6,0.6])
+#     axmatrix = fig.add_axes([0.2,0.02,0.6,0.8])
     
     # reorder similarity matrix by linkage
-    idx1 = Z1['leaves']
-    idx2 = Z2['leaves']
-    sim_mat = sim_mat[idx1[::-1],:]
-    sim_mat = sim_mat[:,idx2]
+    idx = Z['leaves']
+    sim_mat = sim_mat[idx,:]
+    sim_mat = sim_mat[:,idx]
     
-    im = axmatrix.matshow(sim_mat, aspect='auto', origin='lower', cmap="rainbow")
+    im = axmatrix.matshow(sim_mat, aspect='auto', origin='lower', cmap="rainbow", vmax=1, vmin=0)
     axmatrix.set_xticks([])
     axmatrix.set_yticks([])
+    axmatrix.invert_yaxis()
     
     # Plot colorbar.
     axcolor = fig.add_axes([0.81,0.02,0.02,0.6])
-    plt.colorbar(im, cax=axcolor)
+    cbar = plt.colorbar(im, cax=axcolor)
+    cbar.ax.set_ylabel('Proportion of Gibbs samples in which row i and column j were co-clustered', rotation=270, labelpad=10)
     fig.subplots_adjust(wspace=0, hspace=0)
     for plot_type in plot_types:
         plt.savefig(output_path_prefix + "_posterior_similarity_matrix_heatmap." + plot_type, bbox_inches=0)
     
-    return(idx1)
+    return(idx)
 
 #############################################################################################
 

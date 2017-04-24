@@ -226,7 +226,6 @@ parser.add_argument("--do_not_mean_center", action='store_true', dest="do_not_me
                   help="""optional, [default=False]   
 Set this flag if you desire the gene expression data to be clustered
 without mean-centering (do not subtract mean).
-
 """)
 
 ##############################################################################
@@ -559,9 +558,10 @@ cluster_tools.save_cluster_membership_information(optimal_cluster_labels_origina
 if args.plot:
     print "Plotting expression and sampling results."    
     plot_types = args.plot_types.split(',')
-    
-    if not args.post_process:
+    if args.sim_mat:
         sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
+        
+    if not args.post_process:    
         core.save_posterior_similarity_matrix_key([gene_names[idx] for idx in sim_mat_key], args.output_path_prefix)
         plot.plot_cluster_sizes_over_iterations(np.array(all_clusterings), burnIn_phaseI, burnIn_phaseII, args.m, args.output_path_prefix, plot_types)
     
@@ -581,6 +581,7 @@ if args.plot:
 #
 ############################################################################################## 
 
-if args.save_cluster_GPs:
-    param_df = pd.DataFrame({name:dp_cluster.model.param_array for name, dp_cluster in optimal_clusters_GP.iteritems()})    
-    param_df.to_csv(args.output_path_prefix + "_cluster_model_params.txt", sep='\t', index=False, header=True)
+if args.save_cluster_GPs:    
+    param_df = pd.DataFrame({name:dp_cluster.model.param_array for name, dp_cluster in optimal_clusters_GP.iteritems()}) 
+    param_df.index = dp_cluster.model.parameter_names()
+    param_df.to_csv(args.output_path_prefix + "_cluster_model_params.txt", sep='\t', index=True, header=True)
