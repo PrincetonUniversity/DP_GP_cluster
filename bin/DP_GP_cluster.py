@@ -581,7 +581,7 @@ cluster_tools.save_cluster_membership_information(optimal_cluster_labels_origina
 if args.plot:
     print "Plotting expression and sampling results."    
     plot_types = args.plot_types.split(',')
-    if args.sim_mat:
+    if not args.post_process or args.sim_mat:
         sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
         
     if not args.post_process:    

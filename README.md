@@ -62,7 +62,7 @@ Because the optimal clustering is chosen after the entirety of Gibbs sampling, t
     --output /path/to/output_prefix_MPEAR_optimal_clustering.txt \
     --output_path_prefix /path/to/output_prefix_MPEAR
 
-When the `--plot` flat is indicated, the script plots (1) gene expression trajectories by cluster along with the Gaussian Process parameters of each cluster and (2) the posterior similarity matrix in the form of a heatmap with dendrogram. For example:
+When the `--plot` flag is indicated, the script plots (1) gene expression trajectories by cluster along with the Gaussian Process parameters of each cluster and (2) the posterior similarity matrix in the form of a heatmap with dendrogram. For example:
 
 #### Gene expression trajectories by cluster*
 ![expression](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/auxiliary/expression.png)
@@ -82,4 +82,5 @@ citation of publication
 
 ## License
 
-A short snippet describing the license
+[BSD 3-clause](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/LICENSE)
+    
