@@ -78,18 +78,10 @@ For more details on particular parameters, see detailed help message in script.
 
 ## Citation
 
-@article {McDowell131151,
-	author = {McDowell, Ian C and Manandhar, Dinesh and Vockley, Christopher M and Schmid, Amy and Reddy, Timothy E and Engelhardt, Barbara},
-	title = {Clustering gene expression time series data using an infinite Gaussian process mixture model},
-	year = {2017},
-	doi = {10.1101/131151},
-	publisher = {Cold Spring Harbor Labs Journals},
-	URL = {http://biorxiv.org/content/early/2017/04/26/131151},
-	eprint = {http://biorxiv.org/content/early/2017/04/26/131151.full.pdf},
-	journal = {bioRxiv}
-}
+I. C. McDowell, D. Manandhar, C. M. Vockley, A. Schmid, T. E. Reddy, B. Engelhardt, Clustering gene expression time series data using an infinite Gaussian process mixture model. _bioRxiv_  (2017).
+
+I. C. McDowell, D. Manandhar, C. M. Vockley, A. Schmid, T. E. Reddy, B. Engelhardt, Clustering gene expression time series data using an infinite Gaussian process mixture model. _Elife_ (In review).
 
 ## License
-
 [BSD 3-clause](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/LICENSE)
     
