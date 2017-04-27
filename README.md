@@ -78,7 +78,16 @@ For more details on particular parameters, see detailed help message in script.
 
 ## Citation
 
-citation of publication
+@article {McDowell131151,
+	author = {McDowell, Ian C and Manandhar, Dinesh and Vockley, Christopher M and Schmid, Amy and Reddy, Timothy E and Engelhardt, Barbara},
+	title = {Clustering gene expression time series data using an infinite Gaussian process mixture model},
+	year = {2017},
+	doi = {10.1101/131151},
+	publisher = {Cold Spring Harbor Labs Journals},
+	URL = {http://biorxiv.org/content/early/2017/04/26/131151},
+	eprint = {http://biorxiv.org/content/early/2017/04/26/131151.full.pdf},
+	journal = {bioRxiv}
+}
 
 ## License
 
