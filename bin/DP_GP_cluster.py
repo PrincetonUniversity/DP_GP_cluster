@@ -275,11 +275,6 @@ parser.add_argument("--plot", action='store_true', \
                   help="""optional, [default=False] Do not plot anything. if --plot indicated, then plot.
 
 """)
-parser.add_argument("--save_cluster_GPs", action='store_true', \
-                  help="""optional, [default=False] if --save_cluster_GPs indicated, then save dictionary
-of optimal cluster GP parameters as encoded in GPy.
-
-""")
 parser.add_argument("-p", "--plot_types", dest="plot_types", type=str, default='pdf', \
                   help="""optional, [default=pdf] plot type, e.g. pdf.
 If multiple plot types are desired then separate by commas, e.g. pdf,png
@@ -290,6 +285,17 @@ parser.add_argument("-t", "--time_unit", dest="time_unit", type=str, default='',
                   help="""optional, [default=None] time unit, used solely for plotting purposes.
  
 """)
+parser.add_argument("--save_cluster_GPs", action='store_true', \
+                  help="""optional, [default=False] if --save_cluster_GPs indicated, then save tab-separated file
+of optimal cluster GP parameters.
+
+""")
+parser.add_argument("--save_residuals", action='store_true', \
+                  help="""optional, [default=False] if --save_residuals indicated, then save tab-separated file
+of residuals for each gene at each time point using cluster-specific parameters.
+
+""")
+
 
 ##############################################################################
 #
@@ -442,6 +448,7 @@ core.read_gene_expression_matrices(args.gene_expression_matrix,
                                    args.unscaled, 
                                    args.do_not_mean_center)
 
+original_header = list(t)
 # take median of inverse gamma distribution to yield point
 # estimate of sigma_n
 sigma_n2_shape, sigma_n2_rate = args.sigma_n2_shape, args.sigma_n2_rate
@@ -517,6 +524,11 @@ for gene, (gene_name, cluster) in enumerate(zip(gene_names, optimal_clusters)):
     optimal_cluster_labels[cluster].append(gene)
     optimal_cluster_labels_original_gene_names[cluster].append(gene_name)
 
+    
+if args.save_residuals:
+    name_d = {gene:gene_name for gene, gene_name in enumerate(gene_names)}
+    residuals_by_gene = {}
+    
 optimal_clusters_GP = {}
 for cluster, genes in optimal_cluster_labels.iteritems():
     optimal_clusters_GP[cluster] = core.dp_cluster(members=genes, 
@@ -534,7 +546,18 @@ for cluster, genes in optimal_cluster_labels.iteritems():
                                                                                           iter_num, 
                                                                                           args.max_iters, 
                                                                                           args.optimizer)
+    if args.save_residuals:
+        for gene in genes:
+            resids = ( gene_expression_matrix[gene,:] - optimal_clusters_GP[cluster].mean )**2
+            residuals_by_gene[name_d[gene]] = resids
+            
 
+if args.save_residuals:
+    residuals_df = pd.DataFrame(np.array([residuals_by_gene[gene_name] for gene_name in gene_names]))
+    residuals_df.columns = original_header
+    residuals_df.index = gene_names
+    residuals_df.to_csv(args.output_path_prefix + "_residuals.txt", sep='\t', index=True, header=True)
+    
 #############################################################################################
 #
 #    Report

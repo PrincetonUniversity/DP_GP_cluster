@@ -13,7 +13,7 @@ DP_GP_cluster requires the following Python packages:
     
     GPy, pandas, numpy, scipy (>= 0.14), matplotlib.pyplot
 
-It has been tested in Python 2.7 on CentOS v.6.7 and with Anaconda distributions of the latter four above packages.
+It has been tested in linux with Python 2.7 and with Anaconda distributions of the latter four above packages.
 
 Download source code and uncompress, then:
 
@@ -69,10 +69,10 @@ When the `--plot` flat is indicated, the script plots (1) gene expression trajec
 
 *from McDowell et al. 2017, A549 dexamethasone exposure RNA-seq data
 
-#### Posterior similarity matrix
+#### Posterior similarity matrix**
 ![PSM](https://github.com/PrincetonUniversity/DP_GP_cluster/blob/master/auxiliary/PSM.png)
 
-*from McDowell et al. 2017, _H. salinarum_ hydrogen peroxide exposure microarray data
+**from McDowell et al. 2017, _H. salinarum_ hydrogen peroxide exposure microarray data
 
 For more details on particular parameters, see detailed help message in script.
 
