@@ -1,4 +1,6 @@
 
+[![Build Status](https://travis-ci.org/ReddyLab/DP_GP_cluster.svg?branch=master)](https://travis-ci.org/ReddyLab/DP_GP_cluster)
+
 ## DP_GP_cluster
 
 DP_GP_cluster clusters genes by expression over a time course using a Dirichlet process Gaussian process model.
