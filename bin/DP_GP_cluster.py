@@ -267,7 +267,7 @@ for signal variance [default=1]
 
 ##############################################################################
 #
-#  Optional plot arguments
+#  Optional output arguments
 #
 ##############################################################################
 
@@ -285,6 +285,7 @@ parser.add_argument("-t", "--time_unit", dest="time_unit", type=str, default='',
                   help="""optional, [default=None] time unit, used solely for plotting purposes.
  
 """)
+
 parser.add_argument("--save_cluster_GPs", action='store_true', \
                   help="""optional, [default=False] if --save_cluster_GPs indicated, then save tab-separated file
 of optimal cluster GP parameters.
@@ -293,6 +294,12 @@ of optimal cluster GP parameters.
 parser.add_argument("--save_residuals", action='store_true', \
                   help="""optional, [default=False] if --save_residuals indicated, then save tab-separated file
 of residuals for each gene at each time point using cluster-specific parameters.
+
+""")
+
+parser.add_argument("--do_not_plot_sim_mat", action='store_true', \
+                  help="""optional, [default=False] if --do_not_plot_sim_mat indicated, then
+similarity matrix heatmap is not plotted.
 
 """)
 
@@ -581,7 +588,7 @@ cluster_tools.save_cluster_membership_information(optimal_cluster_labels_origina
 if args.plot:
     print "Plotting expression and sampling results."    
     plot_types = args.plot_types.split(',')
-    if not args.post_process or args.sim_mat:
+    if not args.post_process or args.sim_mat and not args.do_not_plot_sim_mat:
         sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
         
     if not args.post_process:    
