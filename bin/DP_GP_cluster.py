@@ -589,7 +589,10 @@ if args.plot:
     print "Plotting expression and sampling results."    
     plot_types = args.plot_types.split(',')
     if not args.post_process or args.sim_mat and not args.do_not_plot_sim_mat:
-        sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
+        try:
+            sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
+        except RuntimeError:
+            print "WARNING: skipping heatmap plot generation, too many dendrogram recursions for scipy"
         
     if not args.post_process:    
         core.save_posterior_similarity_matrix_key([gene_names[idx] for idx in sim_mat_key], args.output_path_prefix)
