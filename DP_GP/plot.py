@@ -160,14 +160,13 @@ def plot_similarity_matrix(sim_mat, output_path_prefix, plot_types):
     ax1.invert_yaxis()
     #Compute and plot the heatmap
     axmatrix = fig.add_axes([0.2,0.02,0.6,0.6])
-#     axmatrix = fig.add_axes([0.2,0.02,0.6,0.8])
     
     # reorder similarity matrix by linkage
     idx = Z['leaves']
     sim_mat = sim_mat[idx,:]
     sim_mat = sim_mat[:,idx]
     
-    im = axmatrix.matshow(sim_mat, aspect='auto', origin='lower', cmap="rainbow", vmax=1, vmin=0)
+    im = axmatrix.matshow(sim_mat, aspect='auto', origin='lower', cmap="cubehelix", vmax=1, vmin=0)
     axmatrix.set_xticks([])
     axmatrix.set_yticks([])
     axmatrix.invert_yaxis()

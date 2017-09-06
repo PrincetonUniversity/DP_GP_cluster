@@ -15,10 +15,10 @@
 #  Import dependencies
 #
 ##############################################################################
-import matplotlib
-matplotlib.use('Agg')
-font = {'size'   : 8}
-matplotlib.rc('font', **font)
+# import matplotlib
+# matplotlib.use('Agg')
+# font = {'size'   : 8}
+# matplotlib.rc('font', **font)
 import matplotlib.pyplot as plt
 
 from DP_GP import plot
@@ -455,7 +455,8 @@ core.read_gene_expression_matrices(args.gene_expression_matrix,
                                    args.unscaled, 
                                    args.do_not_mean_center)
 
-original_header = list(t)
+# save true times for plotting
+t_labels = t.copy() 
 # take median of inverse gamma distribution to yield point
 # estimate of sigma_n
 sigma_n2_shape, sigma_n2_rate = args.sigma_n2_shape, args.sigma_n2_rate
@@ -561,7 +562,7 @@ for cluster, genes in optimal_cluster_labels.iteritems():
 
 if args.save_residuals:
     residuals_df = pd.DataFrame(np.array([residuals_by_gene[gene_name] for gene_name in gene_names]))
-    residuals_df.columns = original_header
+    residuals_df.columns = t_labels
     residuals_df.index = gene_names
     residuals_df.to_csv(args.output_path_prefix + "_residuals.txt", sep='\t', index=True, header=True)
     
@@ -592,7 +593,7 @@ if args.plot:
         try:
             sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
         except RuntimeError:
-            print "WARNING: skipping heatmap plot generation, too many dendrogram recursions for scipy"
+            print "WARNING: skipping heatmap plot generation, too many dendrogram recursions for scipy to handle"
         
     if not args.post_process:    
         core.save_posterior_similarity_matrix_key([gene_names[idx] for idx in sim_mat_key], args.output_path_prefix)
@@ -600,7 +601,7 @@ if args.plot:
     
     plot.plot_cluster_gene_expression(optimal_clusters_GP, 
                                       pd.DataFrame(gene_expression_matrix, index=gene_names, columns=t),
-                                      t, 
+                                      t_labels, 
                                       args.time_unit, 
                                       args.output_path_prefix, 
                                       plot_types, 
