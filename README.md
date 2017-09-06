@@ -120,7 +120,7 @@ Users have the option of directly importing DP_GP for direct access to functions
     cluster_tools.save_cluster_membership_information(optimal_cluster_labels_original_gene_names, 
                                                       optimal_clusters_out)
 
-With this approach, the user will have access to the GP models parameterized to each cluster. With this, the user could draw samples from a cluster GP or predict a new expression value at a new time point along with the associated uncertainty.
+With this approach, the user will have access to the GP models parameterized to each cluster. With this, the user could, e.g., draw samples from a cluster GP or predict a new expression value at a new time point along with the associated uncertainty.
 
     # [continued from above]
     # optimize GP model for best clustering
