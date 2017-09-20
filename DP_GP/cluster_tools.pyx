@@ -207,7 +207,7 @@ def best_clustering_by_h_clust(clusterings, method):
 
 #############################################################################################
 
-def save_cluster_membership_information(optimal_cluster_labels, output):
+def save_cluster_membership_information(optimal_cluster_labels, output, gene_to_prob=None):
     """
     Save cluster membership information in the form:
     cluster<tab>gene
@@ -224,12 +224,16 @@ def save_cluster_membership_information(optimal_cluster_labels, output):
     """
     
     handle = open(output, "w")
-    handle.write('cluster\tgene\n')
-    
+    if gene_to_prob is None:
+        handle.write('cluster\tgene\n')
+    else:
+        handle.write('cluster\tgene\tprobability\n')
     for cluster in sorted(optimal_cluster_labels):
         genes = optimal_cluster_labels[cluster]
         genes = utils.sorted_nicely(genes)
         for gene in genes:
-            handle.write('%s\t%s\n'%(cluster, gene))
-    
+            if gene_to_prob is None:
+                handle.write('%s\t%s\n'%(cluster, gene,))
+            else:
+                handle.write('%s\t%s\t%0.4f\n'%(cluster, gene, gene_to_prob[gene]))
     handle.close()

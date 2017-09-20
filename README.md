@@ -45,6 +45,8 @@ where the first row is a header containing the time points and the first column 
 
 DP_GP_cluster can handle missing data so if an expression value for a given gene at a given time point leave blank or represent with "NA".
 
+We recommend clustering only differentially expressed genes to save runtime.
+
 From the above command, the optimal clustering will be saved at `/path/to/output_path_prefix_optimal_clustering.txt` in a simple tab-delimited format:
 
     cluster	gene
@@ -94,7 +96,7 @@ Users have the option of directly importing DP_GP for direct access to functions
     optimal_clusters_out = "/path/to/optimal_clusters.txt"
 
     # read in gene expression matrix
-    gene_expression_matrix, gene_names, t = core.read_gene_expression_matrices([expression])
+    gene_expression_matrix, gene_names, t, t_labels = core.read_gene_expression_matrices([expression])
 
     # run Gibbs Sampler
     GS = core.gibbs_sampler(gene_expression_matrix, t, 

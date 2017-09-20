@@ -63,7 +63,7 @@ def read_gene_expression_matrices(gene_expression_matrices, true_times=False, un
         
         na_values = ['', '#N/A', '#N/A N/A', '#NA', '-1.#IND', '-1.#QNAN', '-NaN', '-nan', '1.#IND', '1.#QNAN', 'N/A', 'NA', 'NULL', 'NaN', 'nan']
         gene_expression_df = pd.read_csv(gene_expression_matrix, sep="\t", na_values=na_values, index_col=0)
-        
+        t_labels = list(gene_expression_df.columns)
         # stack replicates depth-wise, to ultimately take mean
         if i != 0:
             gene_expression_array = np.dstack((gene_expression_array, np.array(gene_expression_df)))
@@ -100,7 +100,7 @@ def read_gene_expression_matrices(gene_expression_matrices, true_times=False, un
         # add mean once again, to disrupt mean-centering
         gene_expression_matrix += mean
     
-    return(gene_expression_matrix, gene_names, t)
+    return(gene_expression_matrix, gene_names, t, t_labels)
 
 #############################################################################################
 # 
@@ -191,12 +191,13 @@ class dp_cluster():
     :rtype: dp_cluster object
     
     '''
-    def __init__(self, members, X, Y=None, sigma_n=0.2, iter_num_at_birth=0):
+    def __init__(self, members, X, Y=None, sigma_n=0.2, iter_num_at_birth=0, fast=False):
         
         self.dob = iter_num_at_birth # dob = date of birth, i.e. GS iteration number of creation
         self.members = members # members is a list of gene indices that belong to this cluster.
         self.size = len(self.members) # how many members?
         self.model_optimized = False # a newly created cluster is not optimized
+        self.fast = fast
         
         # it may be beneficial to keep track of neg. log likelihood and hyperparameters over iterations
         self.sigma_f_at_iters, self.sigma_n_at_iters, self.l_at_iters, self.NLL_at_iters, self.update_iters = [],[],[],[],[]
@@ -206,8 +207,11 @@ class dp_cluster():
         # noise variance is initially set to a constant (and possibly estimated) value
         self.sigma_n = sigma_n
         if Y is not None:
-            # remove missing data
-            self.X = np.vstack([x for j in range(Y.shape[1]) for x in self.t[~np.isnan(Y[:,j])].flatten()])
+            if not self.fast:
+                # remove missing data
+                self.X = np.vstack([x for j in range(Y.shape[1]) for x in self.t[~np.isnan(Y[:,j])].flatten()])
+            else:
+                self.X = X
         else:
             self.X = self.t
         
@@ -220,8 +224,11 @@ class dp_cluster():
             # for empty clusters, draw a mean vector from the GP prior
             self.Y = np.vstack(np.random.multivariate_normal(np.zeros(self.X.shape[0]), self.K, 1).flatten())
         else: 
-            # remove missing data
-            self.Y = np.vstack([y for j in range(Y.shape[1]) for y in Y[:,j][~np.isnan(Y[:,j])].flatten()])
+            if not self.fast:
+                # remove missing data
+                self.Y = np.vstack([y for j in range(Y.shape[1]) for y in Y[:,j][~np.isnan(Y[:,j])].flatten()])
+            else:
+                self.Y = Y
         
         self.model = GPy.models.GPRegression(self.X, self.Y, self.kernel)
         self.model.Gaussian_noise = self.sigma_n**2
@@ -246,11 +253,7 @@ class dp_cluster():
         s_pinv  = np.array([0 if abs(l) <= eps else 1/l for l in s], dtype=float)
         self.rank = len(d)
         self.U = np.multiply(u, np.sqrt(s_pinv))
-#         print "U"
-#         print self.U
         self.log_pdet = np.sum(np.log(d))
-#         print "log_pdet"
-#         print self.log_pdet
         
     def add_member(self, new_member, iter_num):
         ''' 
@@ -268,7 +271,7 @@ class dp_cluster():
         self.size -= 1
         self.model_optimized = False
         
-    def update_cluster_attributes(self, gene_expression_matrix, sigma_n2_shape=12, sigma_n2_rate=2, length_scale_mu=0., length_scale_sigma=1., sigma_f_mu=0., sigma_f_sigma=1., iter_num=0, max_iters=1000, optimizer='lbfgsb'):
+    def update_cluster_attributes(self, gene_expression_matrix, sigma_n2_shape=12, sigma_n2_rate=2, length_scale_mu=0., length_scale_sigma=1., sigma_f_mu=0., sigma_f_sigma=1., iter_num=0, max_iters=1000, optimizer='lbfgsb', sparse_regression=False, fast=False):
         '''
         For all the clusters greater than size 1, update their Gaussian process hyperparameters,
         then return clusters.
@@ -289,11 +292,23 @@ class dp_cluster():
                 
                 # update model and associated hyperparameters
                 gene_expression_matrix = np.array(gene_expression_matrix)
-                Y = np.array(np.mat(gene_expression_matrix[self.members,:])).T
-                self.X = np.vstack([x for j in range(Y.shape[1]) for x in self.t[~np.isnan(Y[:,j])].flatten()])
-                self.Y = np.vstack([y for j in range(Y.shape[1]) for y in Y[:,j][~np.isnan(Y[:,j])].flatten()])
-                self.K = self.kernel.K(self.X)
-                self.model = GPy.models.GPRegression(self.X, self.Y, self.kernel)
+                if not self.fast:
+                    Y = np.array(np.mat(gene_expression_matrix[self.members,:])).T
+                    self.X = np.vstack([x for j in range(Y.shape[1]) for x in self.t[~np.isnan(Y[:,j])].flatten()])
+                    self.Y = np.vstack([y for j in range(Y.shape[1]) for y in Y[:,j][~np.isnan(Y[:,j])].flatten()])
+                else:
+                    self.Y = np.array(np.mat(gene_expression_matrix[self.members,:])).T
+                
+#                 print self.X
+#                 print "shape(self.X)", self.X.shape
+#                 print self.Y
+#                 print "shape(self.Y)", self.Y.shape
+                
+#                 self.K = self.kernel.K(self.X)
+                if not sparse_regression or self.size <= 20:
+                    self.model = GPy.models.GPRegression(X=self.X, Y=self.Y, kernel=self.kernel)
+                else:
+                    self.model = GPy.models.SparseGPRegression(X=self.X, Y=self.Y, kernel=self.kernel, Z=np.vstack(self.t))
                 
                 # for some reason, must re-set prior on Gaussian noise at every update:
                 self.model.Gaussian_noise.set_prior(GPy.priors.InverseGamma(sigma_n2_shape, sigma_n2_rate), warning=False)                
@@ -302,16 +317,19 @@ class dp_cluster():
                 self.model_optimized = True
                 self.model.optimize(optimizer, max_iters=max_iters)
                 
-                mean, self.covK = self.model.predict(self.t, full_cov=True) #kern=self.model.kern)  
                 self.sigma_n = np.sqrt(self.model['Gaussian_noise'][0])
-                self.mean = mean.flatten()
-                self.K = self.kernel.K(self.t)
+                if not self.fast:
+                    mean, self.covK = self.model.predict(self.t, full_cov=True) #kern=self.model.kern)  
+                    self.mean = mean.flatten()
+                    self.K = self.kernel.K(self.t)
+                else:
+                    mean, self.covK = self.model.predict(self.X, full_cov=True, kern=self.model.kern)  
+                    self.mean = np.hstack(mean.mean(axis=1))
+                
                 self.update_rank_U_and_log_pdet()
                 
             # keep track of neg. log-likelihood and hyperparameters
             self.sigma_n_at_iters.append(self.sigma_n)
-#             self.sigma_f_at_iters.append(np.sqrt(self.model.sum['rbf.variance'][0]))
-#             self.l_at_iters.append(np.sqrt(self.model.sum['rbf.lengthscale'][0]))
             self.sigma_f_at_iters.append(np.sqrt(self.model.sum.rbf.variance))
             self.l_at_iters.append(np.sqrt(self.model.sum.rbf.lengthscale))
             self.NLL_at_iters.append( - float(self.model.log_likelihood()) )
@@ -387,10 +405,10 @@ cdef class gibbs_sampler(object):
     
     cdef int iter_num, num_samples_taken, min_sq_dist_counter, post_counter, m, s, burnIn_phaseI, burnIn_phaseII ,max_num_iterations, max_iters, n_genes
     cdef double min_sq_dist, prev_sq_dist, current_sq_dist, max_post, current_post, prev_post, alpha,  sigma_n_init, sigma_n2_shape, sigma_n2_rate, length_scale_mu, length_scale_sigma, sigma_f_mu, sigma_f_sigma, sq_dist_eps, post_eps
-    cdef bool converged, converged_by_sq_dist, converged_by_likelihood, check_convergence
+    cdef bool converged, converged_by_sq_dist, converged_by_likelihood, check_convergence, check_burnin_convergence, sparse_regression, fast
     cpdef gene_expression_matrix
     cdef double[:] t
-    cpdef optimizer, X, last_MVN_by_cluster_by_gene, last_cluster, clusters, S, log_likelihoods, sampled_clusterings, all_clusterings
+    cpdef optimizer, X, last_MVN_by_cluster_by_gene, last_cluster, clusters, S, log_likelihoods, cluster_size_changes, last_proportions, sampled_clusterings, all_clusterings
     
     def __init__(self,
                  gene_expression_matrix,
@@ -404,6 +422,9 @@ cdef class gibbs_sampler(object):
                  int m=4, 
                  int s=3, 
                  bool check_convergence=False, 
+                 bool check_burnin_convergence=False, 
+                 bool sparse_regression=False, 
+                 bool fast=False, 
                  double sigma_n_init=0.2, 
                  double sigma_n2_shape=12., 
                  double sigma_n2_rate=2., 
@@ -449,6 +470,14 @@ cdef class gibbs_sampler(object):
         self.sq_dist_eps = sq_dist_eps
         self.post_eps = post_eps
         self.check_convergence = check_convergence
+        self.check_burnin_convergence = check_burnin_convergence
+        
+        # option to run sparse regression for large datasets
+        self.sparse_regression = sparse_regression
+        
+        # option to run on fast mode for very large datasets
+        # (only runs with no missing data)
+        self.fast = fast
         
         # intialize kernel variables
         self.sigma_n_init = sigma_n_init
@@ -480,6 +509,12 @@ cdef class gibbs_sampler(object):
         
         # initialize a list to keep track of log likelihoods
         self.log_likelihoods = []
+        
+        # initialize a list to keep track of the
+        # degree to which cluster sizes change over
+        # iterations (for burn-in convergence)
+        self.cluster_size_changes = []
+        self.last_proportions = False
         
         # initialize arrays to keep track of clusterings
         self.sampled_clusterings = np.arange(self.n_genes)
@@ -582,13 +617,22 @@ cdef class gibbs_sampler(object):
             if clusterID in self.last_MVN_by_cluster_by_gene and gene in self.last_MVN_by_cluster_by_gene[clusterID]:
                 lik[index] = self.last_MVN_by_cluster_by_gene[clusterID][gene]
             else:
+#                 print expression_vector.shape,
                 non_nan = ~np.isnan(expression_vector)
+#                 print non_nan,
                 non_nan_idx = np.arange(len(expression_vector))[non_nan]
+#                 print non_nan_idx,
+#                 lik[index] = -0.5 * (self.clusters[clusterID].rank * _LOG_2PI + self.clusters[clusterID].log_pdet + \
+#                                      np.sum(np.square(np.dot(expression_vector[non_nan] - \
+#                                                              self.clusters[clusterID].mean[non_nan], 
+#                                                              self.clusters[clusterID].U[non_nan_idx].T[non_nan_idx]))))
+#                 print "self.clusters[clusterID].rank", self.clusters[clusterID].rank
+#                 print "self.clusters[clusterID].U.shape", self.clusters[clusterID].U.shape
+#                 print "expression_vector", expression_vector
+#                 print "self.clusters[clusterID].mean", self.clusters[clusterID].mean
                 lik[index] = -0.5 * (self.clusters[clusterID].rank * _LOG_2PI + self.clusters[clusterID].log_pdet + \
-                                     np.sum(np.square(np.dot(expression_vector[non_nan] - \
-                                                             self.clusters[clusterID].mean[non_nan], 
-                                                             self.clusters[clusterID].U[non_nan_idx].T[non_nan_idx]))))
-        
+                                     np.sum(np.square(np.dot(expression_vector - self.clusters[clusterID].mean, self.clusters[clusterID].U))))
+       
         # scale the log-likelihoods down by subtracting (one less than) the largest log-likelihood
         # (which is equivalent to dividing by the largest likelihood), to avoid
         # underflow issues when normalizing to [0-1] interval.
@@ -667,7 +711,7 @@ cdef class gibbs_sampler(object):
         :type current_sq_dist: int
         
         :rtype bool
-        
+         
         '''
         if  self.current_sq_dist == 0 or \
            (abs( (self.prev_sq_dist - self.current_sq_dist) / self.current_sq_dist) <= self.sq_dist_eps \
@@ -680,7 +724,7 @@ cdef class gibbs_sampler(object):
         ''' 
         Check for GS convergence based on whether the posterior likelihood of cluster assignment
         changes over consecutive GS samples.
-        
+        de
         :param iter_num: current Gibbs sampling iteration
         :type iter_num: int
         :param prev_post: previous log-likelihood
@@ -700,12 +744,16 @@ cdef class gibbs_sampler(object):
     
     def sampler(self):
         
+#         import warnings
+#         warnings.simplefilter("error")
+        
         print 'Initializing one-gene clusters...'
         cdef int i, gene
         for i in range(self.n_genes):
             self.clusters[self.m + i] = dp_cluster(members=[i], sigma_n=self.sigma_n_init, \
                                                    X=self.X, Y=np.array(np.mat(self.gene_expression_matrix[i,:])).T, \
-                                                   iter_num_at_birth=self.iter_num) # cluster members, D.O.B.
+                                                   iter_num_at_birth=self.iter_num, 
+                                                   fast=self.fast) # cluster members, D.O.B.
             self.last_cluster[i] = self.m + i
             
         while (not self.converged) and (self.iter_num < self.max_num_iterations):
@@ -755,7 +803,8 @@ cdef class gibbs_sampler(object):
                                                                    sigma_n=self.sigma_n_init, 
                                                                    X=self.X, 
                                                                    Y=np.array(np.mat(self.gene_expression_matrix[gene,:])).T, 
-                                                                   iter_num_at_birth=self.iter_num)
+                                                                   iter_num_at_birth=self.iter_num,
+                                                                   fast=self.fast)
                         
                     else:
                         
@@ -775,7 +824,41 @@ cdef class gibbs_sampler(object):
                 
                 self.last_cluster[gene] = cluster_chosen
                 
-            if (self.iter_num >= self.burnIn_phaseI):
+            if self.check_burnin_convergence and self.iter_num < self.burnIn_phaseII:
+                
+                sizes = {n:c.size for n,c in self.clusters.iteritems() if c.size > 0}
+                proportions = {n:s/float(sum(sizes.values())) for n,s in sizes.iteritems()}
+                
+                if self.last_proportions is not False:
+                    
+                    all_cluster_names = sorted(set(proportions.keys()) | set(self.last_proportions.keys()))
+                    change = np.abs(np.array([proportions[n] if n not in self.last_proportions else self.last_proportions[n] if n not in proportions else proportions[n] - self.last_proportions[n] for n in all_cluster_names])).sum()
+                    self.cluster_size_changes.append(change)
+                    self.cluster_size_changes = self.cluster_size_changes[-10:]
+                    
+                self.last_proportions = proportions
+                
+                if all(np.abs(np.diff(self.cluster_size_changes)) < 0.05 ):
+                    
+                    if ( self.iter_num < self.burnIn_phaseI ) and \
+                    ( self.iter_num > self.burnIn_phaseI / 4.):
+                        
+                        print "Burn-In phase I converged by cluster-switching ratio"
+                        self.burnIn_phaseII = self.burnIn_phaseII - self.burnIn_phaseI + self.iter_num
+                        self.burnIn_phaseI = self.iter_num
+                        self.cluster_size_changes = []
+                        
+                    elif ( self.iter_num > self.burnIn_phaseI ) and \
+                    ( (self.iter_num - self.burnIn_phaseI) > ((self.burnIn_phaseII - self.burnIn_phaseI) / 4.) ):
+                        
+                        print "Burn-In phase II converged by cluster-switching ratio"
+                        self.burnIn_phaseII = self.iter_num
+                        continue
+                        
+                    else:
+                        pass
+                    
+            if self.iter_num >= self.burnIn_phaseI:
                 
                 self.all_clusterings = np.vstack((self.all_clusterings, np.array([self.last_cluster[i] for i in range(self.n_genes)])))            
                 
@@ -786,7 +869,8 @@ cdef class gibbs_sampler(object):
                         if not cluster.model_optimized and cluster.size > 1:
                             del self.last_MVN_by_cluster_by_gene[clusterID]
                         
-                        self.clusters[clusterID] = cluster.update_cluster_attributes(self.gene_expression_matrix, self.sigma_n2_shape, self.sigma_n2_rate, self.length_scale_mu, self.length_scale_sigma, self.sigma_f_mu, self.sigma_f_sigma, self.iter_num, self.max_iters, self.optimizer)
+                        self.clusters[clusterID] = cluster.update_cluster_attributes(self.gene_expression_matrix, self.sigma_n2_shape, self.sigma_n2_rate, self.length_scale_mu, self.length_scale_sigma, self.sigma_f_mu, self.sigma_f_sigma, self.iter_num, self.max_iters, self.optimizer, self.sparse_regression, self.fast)
+#                         import time; time.sleep(5)
                         
             # take a sample from the posterior distribution
             if self.sample() and (self.iter_num >= self.burnIn_phaseII):
@@ -809,8 +893,12 @@ cdef class gibbs_sampler(object):
                     # Check convergence by the squared distance of current pairwise gene-by-gene clustering to mean gene-by-gene clustering
                     if self.current_sq_dist <= self.min_sq_dist:
                         
-                        with utils.suppress_stdout_stderr():
-                            min_sq_dist_clusters = copy.deepcopy(self.clusters)
+#                         with utils.suppress_stdout_stderr():
+#                             for cluster in self.clusters:
+#                                 print dir(cluster)
+#                                 test = copy.deepcopy(cluster)
+                            
+#                             min_sq_dist_clusters = copy.deepcopy(self.clusters)
                         
                         self.min_sq_dist = self.current_sq_dist
                         self.converged_by_sq_dist = self.check_GS_convergence_by_sq_dist()

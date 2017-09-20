@@ -178,9 +178,24 @@ Number of empty clusters available at each iteration, or new "tables"
 in terms of the Chinese restaurant process.
 
 """)
+parser.add_argument("--fast", action='store_true', \
+                  help="""optional, run in fast mode for very large datasets.
+Cannot be run with large datasets.
+""")
+
 parser.add_argument("--check_convergence", action='store_true', \
                   help="""optional, [default=do not check for convergence but run until max iterations]   
 If --check_convergence, then check for convergence, else run until max iterations.
+
+""")
+parser.add_argument("--check_burnin_convergence", action='store_true', \
+                  help="""optional, [default=do not check for burn-in convergence but
+run burn-in until predetermined number of iterations]   
+
+""")
+parser.add_argument("--sparse_regression", action='store_true', \
+                  help="""optional, may be useful to run sparse regression
+for large data sets.
 
 """)
 parser.add_argument("-c", "--criterion", dest="criterion", type=str, default='MAP', \
@@ -275,7 +290,7 @@ parser.add_argument("--plot", action='store_true', \
                   help="""optional, [default=False] Do not plot anything. if --plot indicated, then plot.
 
 """)
-parser.add_argument("-p", "--plot_types", dest="plot_types", type=str, default='pdf', \
+parser.add_argument("-p", "--plot_types", nargs='+', dest="plot_types", type=str, default='pdf', \
                   help="""optional, [default=pdf] plot type, e.g. pdf.
 If multiple plot types are desired then separate by commas, e.g. pdf,png
 and, for each generated plot, one plot of each specified kind will be generated.
@@ -302,7 +317,11 @@ parser.add_argument("--do_not_plot_sim_mat", action='store_true', \
 similarity matrix heatmap is not plotted.
 
 """)
+parser.add_argument("--cluster_uncertainty_estimate", action='store_true', \
+                  help="""optional, [default=False] if --cluster_uncertainty_estimate indicated, then
+estimate the probability, for each gene, that assigned cluster is true.
 
+""")
 
 ##############################################################################
 #
@@ -367,7 +386,7 @@ only necessarily apply within row/sample.
 
 """)
 parser.add_argument("--log_likelihoods", dest="log_likelihoods", action="store",  default=None, \
-                  help=("""optional, e.g. /path/to/log_likelihoods.txt
+                  help="""optional, e.g. /path/to/log_likelihoods.txt
 
 If DP_GP_cluster.py has already been run, user can
 choose to use log likelihoods to return an optimal
@@ -384,7 +403,7 @@ where the format of the log_likelihoods.txt is:
 Each row corresponds to the posterior log-likelihood and also
 corresponds to each row in clusterings.txt. 
 
-"""))
+""")
 
 parser.add_argument('--version', action='version', version='DP_GP_cluster.py v.0.1')
 
@@ -403,7 +422,7 @@ if (args.gene_expression_matrix is None) | (args.output_path_prefix is None):
 
 if args.criterion not in ["MAP", "MPEAR", "least_squares", "h_clust_avg", "h_clust_comp"]:
     raise ValueError("""incorrect criterion. Please choose from among the following options:
-MPEAR, MAP, least_squares, h_clust_avg, h_clust_comp""")
+    MPEAR, MAP, least_squares, h_clust_avg, h_clust_comp""")
 
 #############################################################################################
 #
@@ -449,14 +468,12 @@ np.random.seed(1234)
 #
 #############################################################################################
 
-gene_expression_matrix, gene_names, t = \
+gene_expression_matrix, gene_names, t, t_labels = \
 core.read_gene_expression_matrices(args.gene_expression_matrix, 
                                    args.true_times, 
                                    args.unscaled, 
                                    args.do_not_mean_center)
 
-# save true times for plotting
-t_labels = t.copy() 
 # take median of inverse gamma distribution to yield point
 # estimate of sigma_n
 sigma_n2_shape, sigma_n2_rate = args.sigma_n2_shape, args.sigma_n2_rate
@@ -493,17 +510,17 @@ if not args.post_process:
     print "Begin sampling"
     GS = core.gibbs_sampler(gene_expression_matrix,t, args.max_num_iterations, args.max_iters, \
                             args.optimizer, burnIn_phaseI, burnIn_phaseII, args.alpha, args.m, \
-                            args.s, args.check_convergence, sigma_n, sigma_n2_shape, sigma_n2_rate, \
+                            args.s, args.check_convergence, args.check_burnin_convergence, args.sparse_regression, args.fast, \
+                            sigma_n, sigma_n2_shape, sigma_n2_rate, \
                             args.length_scale_mu, args.length_scale_sigma, args.sigma_f_mu, \
                             args.sigma_f_sigma, sq_dist_eps, post_eps)
-    
     sim_mat, all_clusterings, sampled_clusterings, log_likelihoods, iter_num = GS.sampler()
     
     sampled_clusterings.columns = gene_names
     all_clusterings.columns = gene_names
 else:
     iter_num = 0
-    
+
 #############################################################################################
 #
 #    Find optimal clustering
@@ -532,13 +549,73 @@ for gene, (gene_name, cluster) in enumerate(zip(gene_names, optimal_clusters)):
     optimal_cluster_labels[cluster].append(gene)
     optimal_cluster_labels_original_gene_names[cluster].append(gene_name)
 
-    
+if args.cluster_uncertainty_estimate:
+    gene_to_prob = {}
+    for gene_i_k, (gene_name, cluster) in enumerate(zip(gene_names, optimal_clusters)):
+        genes_in_cluster = set(optimal_cluster_labels[cluster])
+        genes_j_k = genes_in_cluster - set([gene_i_k])
+        if len(genes_j_k) > 0:
+            gene_to_prob[gene_name] = sum([sim_mat[gene_i_k,gene_j_k] for gene_j_k in genes_j_k])/len(genes_j_k)
+        else:
+            gene_to_prob[gene_name] = 1.
+            
+
+if args.cluster_uncertainty_estimate:
+    print "Estimating cluster probability for each gene, loop:",
+    uncertainty_converged,last_gene_to_prob,prob_eps_cutoff,c,c_max=False,False,1e-8,0,200
+    while uncertainty_converged == False:
+        print c,
+        gene_to_prob = {}
+        for gene_i_k, (gene_name, cluster) in enumerate(zip(gene_names, optimal_clusters)):
+            genes_in_cluster = set(optimal_cluster_labels[cluster])
+            genes_j_k = genes_in_cluster - set([gene_i_k])
+            if len(genes_j_k) > 0:
+                if last_gene_to_prob is False:
+                    # first loop through iterative process estimates the
+                    # probability that gene belongs to cluster by taking
+                    # the mean proportion of times gene co-clusters
+                    # with every other gene in cluster
+                    denominator = len(genes_j_k)
+                    gene_to_prob[gene_i_k] = sum([sim_mat[gene_i_k,gene_j_k] for gene_j_k in genes_j_k])/denominator
+                else:
+                    # in subsequent loops, genes are weighted by how
+                    # likely they are to belong to a cluster. In this way,
+                    # the likelihood that a gene i belongs to cluster k 
+                    # depends less on a gene j that is unlikely to belong to cluster k
+                    # and depends more on gene l that is likely to belong to cluster k
+                    denominator = sum([last_gene_to_prob[gene_j_k] for gene_j_k in genes_j_k])
+                    gene_to_prob[gene_i_k] = sum([sim_mat[gene_i_k,gene_j_k] * last_gene_to_prob[gene_j_k] for gene_j_k in genes_j_k])/denominator
+            else:
+                gene_to_prob[gene_i_k] = 1.
+                
+        if last_gene_to_prob is not False:
+            # find overall sum in absolute change in probability estimates
+            prob_eps = sum([np.abs(gene_to_prob[g] - last_gene_to_prob[g]) for g in sorted(gene_to_prob)])    
+            # check for convergence
+            if prob_eps < prob_eps_cutoff:
+                print "converged"
+                for gene_i_k, gene_name in enumerate(gene_names):
+                    gene_to_prob[gene_name] = gene_to_prob[gene_i_k]
+                    del gene_to_prob[gene_i_k]
+                    
+                break
+        
+        last_gene_to_prob = gene_to_prob.copy()
+        c+=1
+        if c > c_max:
+            print "WARNING: iterative cluster_uncertainty_estimate did not converge"
+            for gene_i_k, gene_name in enumerate(zip(gene_names)):
+                gene_to_prob[gene_name] = "NA"
+            break
+
 if args.save_residuals:
     name_d = {gene:gene_name for gene, gene_name in enumerate(gene_names)}
     residuals_by_gene = {}
     
 optimal_clusters_GP = {}
+print "Optimizing parameters for optimal clusters."
 for cluster, genes in optimal_cluster_labels.iteritems():
+    print "Cluster %s, %s genes"%(cluster, len(genes))
     optimal_clusters_GP[cluster] = core.dp_cluster(members=genes, 
                                                    sigma_n=sigma_n, 
                                                    X=np.vstack(t), 
@@ -578,7 +655,14 @@ if not args.post_process:
     core.save_clusterings(sampled_clusterings, args.output_path_prefix)
     core.save_log_likelihoods(log_likelihoods, args.output_path_prefix)
 
-cluster_tools.save_cluster_membership_information(optimal_cluster_labels_original_gene_names, args.output_path_prefix + "_optimal_clustering.txt")
+if not args.cluster_uncertainty_estimate:
+    cluster_tools.save_cluster_membership_information(optimal_cluster_labels_original_gene_names, 
+                                                      args.output_path_prefix + "_optimal_clustering.txt")
+else:
+    cluster_tools.save_cluster_membership_information(optimal_cluster_labels_original_gene_names, 
+                                                      args.output_path_prefix + "_optimal_clustering.txt",
+                                                      gene_to_prob)
+
 
 #############################################################################################
 #
@@ -588,7 +672,7 @@ cluster_tools.save_cluster_membership_information(optimal_cluster_labels_origina
 
 if args.plot:
     print "Plotting expression and sampling results."    
-    plot_types = args.plot_types.split(',')
+    plot_types = args.plot_types
     if not args.post_process or args.sim_mat and not args.do_not_plot_sim_mat:
         try:
             sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
@@ -601,6 +685,7 @@ if args.plot:
     
     plot.plot_cluster_gene_expression(optimal_clusters_GP, 
                                       pd.DataFrame(gene_expression_matrix, index=gene_names, columns=t),
+                                      t,
                                       t_labels, 
                                       args.time_unit, 
                                       args.output_path_prefix, 
@@ -608,7 +693,6 @@ if args.plot:
                                       args.unscaled, 
                                       args.do_not_mean_center)
 
-    
 #############################################################################################
 #
 #    Save clusters

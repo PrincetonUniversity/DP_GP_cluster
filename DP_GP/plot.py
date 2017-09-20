@@ -38,7 +38,7 @@ def adjust_spines(ax, spines):
         # no xaxis ticks
         ax.xaxis.set_ticks([])
 
-def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit, output_path_prefix, plot_types, unscaled, do_not_mean_center):
+def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, t_labels, time_unit, output_path_prefix, plot_types, unscaled, do_not_mean_center):
     ''' 
     Plot gene expression over a time course with a panel for each cluster. Each panel contains
     transparent red lines for the expression of each individual gene within the cluster, the
@@ -109,7 +109,7 @@ def plot_cluster_gene_expression(clusters, gene_expression_matrix, t, time_unit,
             else:
                 ax.set_xlabel("Time in %s"%(time_unit))
             ax.set_xticks(t)
-            ax.set_xticklabels(t)
+            ax.set_xticklabels(t_labels)
             ax.set_ylabel('Gene expression')
             ax.set_title('Cluster %s'%(index))
             index+=1
