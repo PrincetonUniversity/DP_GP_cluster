@@ -45,7 +45,9 @@ where the first row is a header containing the time points and the first column 
 
 DP_GP_cluster can handle missing data so if an expression value for a given gene at a given time point leave blank or represent with "NA".
 
-We recommend clustering only differentially expressed genes to save runtime.
+We recommend clustering only differentially expressed genes to save runtime. If genes can further be separated by up- and down-regulated beforehand, this will also substantially decrease runtime.
+
+To cluster thousands of genes, use option `--fast`, although in this mode, no missing data allowed.
 
 From the above command, the optimal clustering will be saved at `/path/to/output_path_prefix_optimal_clustering.txt` in a simple tab-delimited format:
 
