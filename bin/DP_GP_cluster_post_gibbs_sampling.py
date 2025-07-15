@@ -270,27 +270,27 @@ args.length_scale_mu, args.length_scale_sigma, args.sigma_f_mu, args.sigma_f_sig
 
 if criterion == 'MPEAR':
     if not clusterings or not sim_mat:
-        print "ERROR: if criterion = MPEAR, must provide both clusterings and similarity_matrix"
+        print("ERROR: if criterion = MPEAR, must provide both clusterings and similarity_matrix")
         exit()
 elif criterion == 'MAP':
     if not clusterings or not log_likelihoods:
-        print "ERROR: if criterion = MAP, must provide both clusterings and log_likelihoods"
+        print("ERROR: if criterion = MAP, must provide both clusterings and log_likelihoods")
         exit()
 elif criterion == 'h_clust_avg':
     if not sim_mat:
-        print "ERROR: if criterion = h_clust_avg, must provide similarity_matrix"
+        print("ERROR: if criterion = h_clust_avg, must provide similarity_matrix")
         exit()
 elif criterion == 'h_clust_comp':
     if not sim_mat:
-        print "ERROR: if criterion = h_clust_comp, must provide similarity_matrix"
+        print("ERROR: if criterion = h_clust_comp, must provide similarity_matrix")
         exit()
 elif criterion == 'least_squares':
     if not clusterings or not sim_mat:
-        print "ERROR: if criterion = least_squares, must provide both clusterings and similarity_matrix"
+        print("ERROR: if criterion = least_squares, must provide both clusterings and similarity_matrix")
         exit()
 else:
-    print """ERROR: incorrect criterion. Please choose from among the following options:
-MPEAR, MAP, least_squares, h_clust_avg, h_clust_comp"""
+    print("""ERROR: incorrect criterion. Please choose from among the following options:
+MPEAR, MAP, least_squares, h_clust_avg, h_clust_comp""")
     exit()
 
 if clusterings:
@@ -349,7 +349,7 @@ if args.gene_expression_matrix:
                 if true_times:
                     t = np.array(list(gene_expression_matrix.columns)).astype('float')
                 else:
-                    t = np.array(range(gene_expression_matrix.shape[1])).astype('float') # equally spaced time points
+                    t = np.array(list(range(gene_expression_matrix.shape[1]))).astype('float') # equally spaced time points
                 try:
                     gene_expression_array = np.dstack((gene_expression_array, gene_expression_matrix))
                 except NameError:
@@ -384,7 +384,7 @@ if args.gene_expression_matrix:
             if true_times:
                 t = np.array(list(gene_expression_matrix.columns)).astype('float')
             else:
-                t = np.array(range(gene_expression_matrix.shape[1])).astype('float') # equally spaced time points
+                t = np.array(list(range(gene_expression_matrix.shape[1]))).astype('float') # equally spaced time points
                         
             # scale each gene's expression across time-series to mean 0, std. dev 1.
             if not args.do_not_mean_center:
@@ -409,7 +409,7 @@ if args.gene_expression_matrix:
 #############################################################################################
 
 optimal_clusters_GP = {}
-for cluster, genes in optimal_cluster_labels.iteritems():
+for cluster, genes in optimal_cluster_labels.items():
     optimal_clusters_GP[cluster] = core.dp_cluster(members=genes, sigma_n=sigma_n, X=X, Y=np.array(np.mat(gene_expression_matrix[genes,:])).T, iter_num_at_birth=0)
     optimal_clusters_GP[cluster] = optimal_clusters_GP[cluster].update_cluster_attributes(gene_expression_matrix, sigma_n2_shape, sigma_n2_rate, length_scale_mu, length_scale_sigma, sigma_f_mu, sigma_f_sigma, 0, 10000, args.optimizer)
 

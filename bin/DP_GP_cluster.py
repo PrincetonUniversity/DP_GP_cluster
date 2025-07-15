@@ -432,18 +432,18 @@ if args.criterion not in ["MAP", "MPEAR", "least_squares", "h_clust_avg", "h_clu
 #############################################################################################
 
 if args.post_process:
-    print "Reading sampling results."
+    print("Reading sampling results.")
     if args.criterion == 'MPEAR' or args.criterion == 'least_squares':
         if not args.clusterings or not args.sim_mat:
-            print "ERROR: if criterion = MPEAR or least_squares, must provide both clusterings and similarity_matrix"
+            print("ERROR: if criterion = MPEAR or least_squares, must provide both clusterings and similarity_matrix")
             exit()
     elif args.criterion == 'MAP':
         if not args.clusterings or not args.log_likelihoods:
-            print "ERROR: if criterion = MAP, must provide both clusterings and log_likelihoods"
+            print("ERROR: if criterion = MAP, must provide both clusterings and log_likelihoods")
             exit()
     elif args.criterion == 'h_clust_avg' or args.criterion == 'h_clust_comp':
         if not args.sim_mat:
-            print "ERROR: if criterion = h_clust_avg or h_clust_comp, must provide similarity_matrix"
+            print("ERROR: if criterion = h_clust_avg or h_clust_comp, must provide similarity_matrix")
             exit()
 
 if args.clusterings:
@@ -507,7 +507,7 @@ sq_dist_eps, post_eps  = 0.01, 1e-5
 #############################################################################################
 
 if not args.post_process:
-    print "Begin sampling"
+    print("Begin sampling")
     GS = core.gibbs_sampler(gene_expression_matrix,t, args.max_num_iterations, args.max_iters, \
                             args.optimizer, burnIn_phaseI, burnIn_phaseII, args.alpha, args.m, \
                             args.s, args.check_convergence, args.check_burnin_convergence, args.sparse_regression, args.fast, \
@@ -561,10 +561,10 @@ if args.cluster_uncertainty_estimate:
             
 
 if args.cluster_uncertainty_estimate:
-    print "Estimating cluster probability for each gene, loop:",
+    print("Estimating cluster probability for each gene, loop:", end=' ')
     uncertainty_converged,last_gene_to_prob,prob_eps_cutoff,c,c_max=False,False,1e-8,0,200
     while uncertainty_converged == False:
-        print c,
+        print(c, end=' ')
         gene_to_prob = {}
         for gene_i_k, (gene_name, cluster) in enumerate(zip(gene_names, optimal_clusters)):
             genes_in_cluster = set(optimal_cluster_labels[cluster])
@@ -593,7 +593,7 @@ if args.cluster_uncertainty_estimate:
             prob_eps = sum([np.abs(gene_to_prob[g] - last_gene_to_prob[g]) for g in sorted(gene_to_prob)])    
             # check for convergence
             if prob_eps < prob_eps_cutoff:
-                print "converged"
+                print("converged")
                 for gene_i_k, gene_name in enumerate(gene_names):
                     gene_to_prob[gene_name] = gene_to_prob[gene_i_k]
                     del gene_to_prob[gene_i_k]
@@ -603,7 +603,7 @@ if args.cluster_uncertainty_estimate:
         last_gene_to_prob = gene_to_prob.copy()
         c+=1
         if c > c_max:
-            print "WARNING: iterative cluster_uncertainty_estimate did not converge"
+            print("WARNING: iterative cluster_uncertainty_estimate did not converge")
             for gene_i_k, gene_name in enumerate(zip(gene_names)):
                 gene_to_prob[gene_name] = "NA"
             break
@@ -613,9 +613,9 @@ if args.save_residuals:
     residuals_by_gene = {}
     
 optimal_clusters_GP = {}
-print "Optimizing parameters for optimal clusters."
-for cluster, genes in optimal_cluster_labels.iteritems():
-    print "Cluster %s, %s genes"%(cluster, len(genes))
+print("Optimizing parameters for optimal clusters.")
+for cluster, genes in optimal_cluster_labels.items():
+    print("Cluster %s, %s genes"%(cluster, len(genes)))
     optimal_clusters_GP[cluster] = core.dp_cluster(members=genes, 
                                                    sigma_n=sigma_n, 
                                                    X=np.vstack(t), 
@@ -650,7 +650,7 @@ if args.save_residuals:
 ############################################################################################## 
 
 if not args.post_process:
-    print "Saving sampling results."
+    print("Saving sampling results.")
     core.save_posterior_similarity_matrix(sim_mat, gene_names, args.output_path_prefix)
     core.save_clusterings(sampled_clusterings, args.output_path_prefix)
     core.save_log_likelihoods(log_likelihoods, args.output_path_prefix)
@@ -671,13 +671,13 @@ else:
 ############################################################################################## 
 
 if args.plot:
-    print "Plotting expression and sampling results."    
+    print("Plotting expression and sampling results.")    
     plot_types = args.plot_types
     if not args.post_process or args.sim_mat and not args.do_not_plot_sim_mat:
         try:
             sim_mat_key = plot.plot_similarity_matrix(sim_mat, args.output_path_prefix, plot_types)
         except RuntimeError:
-            print "WARNING: skipping heatmap plot generation, too many dendrogram recursions for scipy to handle"
+            print("WARNING: skipping heatmap plot generation, too many dendrogram recursions for scipy to handle")
         
     if not args.post_process:    
         core.save_posterior_similarity_matrix_key([gene_names[idx] for idx in sim_mat_key], args.output_path_prefix)
@@ -700,6 +700,6 @@ if args.plot:
 ############################################################################################## 
 
 if args.save_cluster_GPs:    
-    param_df = pd.DataFrame({name:dp_cluster.model.param_array for name, dp_cluster in optimal_clusters_GP.iteritems()}) 
+    param_df = pd.DataFrame({name:dp_cluster.model.param_array for name, dp_cluster in optimal_clusters_GP.items()}) 
     param_df.index = dp_cluster.model.parameter_names()
     param_df.to_csv(args.output_path_prefix + "_cluster_model_params.txt", sep='\t', index=True, header=True)
